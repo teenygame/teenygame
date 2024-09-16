@@ -5,6 +5,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
+use web_sys::js_sys::JsString;
 use web_sys::HtmlImageElement;
 
 pub struct Image(HtmlImageElement);
@@ -15,7 +16,7 @@ pub struct WasmError(String);
 
 impl From<JsValue> for WasmError {
     fn from(value: JsValue) -> Self {
-        Self(format!("{:?}", value))
+        Self(String::from(JsString::from(value)))
     }
 }
 
