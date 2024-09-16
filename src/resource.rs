@@ -21,7 +21,7 @@ impl<T> Clone for Resource<T> {
     }
 }
 
-type ResourceState<T> = Option<Arc<Result<T, Box<dyn std::error::Error + Send + Sync>>>>;
+type ResourceState<T> = Option<Result<Arc<T>, Arc<Box<dyn std::error::Error + Send + Sync>>>>;
 
 impl<T> Resource<T> {
     fn pending() -> Self {

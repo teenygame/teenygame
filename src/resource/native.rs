@@ -22,10 +22,13 @@ pub fn load_bytes(path: &str) -> Resource<Vec<u8>> {
         let r = r.clone();
 
         spawn(async move {
-            let res = tokio::fs::read(path).await.map_err(|e| Box::new(e).into());
+            let res = tokio::fs::read(path)
+                .await
+                .map(|v| Arc::new(v))
+                .map_err(|e| Arc::new(Box::new(e).into()));
 
             let mut txn = r.0.write();
-            *txn = Some(Arc::new(res));
+            *txn = Some(res);
             txn.commit();
         });
     }
@@ -40,12 +43,12 @@ pub fn load_image(path: &str) -> Resource<Image> {
 
         spawn_blocking(move || {
             let res = ImageReader::open(path)
-                .map_err(|e| Box::new(e).into())
-                .and_then(|v| v.decode().map_err(|e| Box::new(e).into()))
-                .map(|img| Image(img));
+                .map_err(|e| Arc::new(Box::new(e).into()))
+                .and_then(|v| v.decode().map_err(|e| Arc::new(Box::new(e).into())))
+                .map(|img| Arc::new(Image(img)));
 
             let mut txn = r.0.write();
-            *txn = Some(Arc::new(res));
+            *txn = Some(res);
             txn.commit();
         });
     }
