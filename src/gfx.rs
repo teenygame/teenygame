@@ -11,7 +11,7 @@ use winit::{dpi::PhysicalSize, window::Window};
 #[cfg(feature = "femtovg")]
 pub use femtovg::*;
 
-use crate::resource::Image;
+use crate::asset::Image;
 
 #[cfg(feature = "femtovg")]
 pub type Canvas = femtovg::Canvas<femtovg::renderer::OpenGl>;
@@ -106,10 +106,10 @@ pub struct GraphicsContext {
     pub canvas: Canvas,
 
     #[cfg(feature = "femtovg")]
-    image_cache: HashMap<(*const Image, ImageFlags), CachedImage>,
+    image_id_cache: HashMap<(*const Image, ImageFlags), CachedImageId>,
 }
 
-struct CachedImage {
+struct CachedImageId {
     weak: Weak<Image>,
     id: ImageId,
 }
@@ -122,7 +122,7 @@ impl GraphicsContext {
         flags: ImageFlags,
     ) -> Result<femtovg::ImageId, femtovg::ErrorKind> {
         match self
-            .image_cache
+            .image_id_cache
             .entry((img.as_ref() as *const Image, flags))
         {
             std::collections::hash_map::Entry::Occupied(e) => Ok(e.get().id),
@@ -132,7 +132,7 @@ impl GraphicsContext {
                         .map_err(|_| femtovg::ErrorKind::UnsupportedImageFormat)?,
                     flags,
                 )?;
-                e.insert(CachedImage {
+                e.insert(CachedImageId {
                     weak: Arc::downgrade(&img),
                     id,
                 });
@@ -144,7 +144,7 @@ impl GraphicsContext {
     pub fn gc(&mut self) {
         #[cfg(feature = "femtovg")]
         {
-            self.image_cache.retain(|_, c| {
+            self.image_id_cache.retain(|_, c| {
                 if c.weak.strong_count() > 0 {
                     return true;
                 }
@@ -330,7 +330,7 @@ impl GraphicsState {
                 canvas,
 
                 #[cfg(feature = "femtovg")]
-                image_cache: HashMap::new(),
+                image_id_cache: HashMap::new(),
             },
 
             #[cfg(not(target_arch = "wasm32"))]

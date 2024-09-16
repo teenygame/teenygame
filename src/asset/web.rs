@@ -1,4 +1,4 @@
-use super::Resource;
+use super::Asset;
 use futures::channel::oneshot;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -29,8 +29,8 @@ impl<'a> TryFrom<&'a Image> for femtovg::ImageSource<'a> {
     }
 }
 
-pub fn load_bytes(path: &str) -> Resource<Vec<u8>> {
-    let r = Resource::pending();
+pub fn load_bytes(path: &str) -> Asset<Vec<u8>> {
+    let r = Asset::pending();
     {
         let path = path.to_string();
         let r = r.clone();
@@ -83,8 +83,8 @@ async fn load_html_image(src: &str) -> Result<HtmlImageElement, JsValue> {
     Ok(img)
 }
 
-pub fn load_image(path: &str) -> Resource<Image> {
-    let r = Resource::pending();
+pub fn load_image(path: &str) -> Asset<Image> {
+    let r = Asset::pending();
 
     {
         let path = path.to_string();
