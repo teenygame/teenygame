@@ -3,6 +3,7 @@ pub mod audio;
 pub mod futures;
 pub mod gfx;
 pub mod input;
+pub mod resource;
 pub mod time;
 
 #[cfg(feature = "audio")]
