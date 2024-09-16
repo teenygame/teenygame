@@ -16,7 +16,7 @@ impl<'a> TryFrom<&'a Image> for femtovg::ImageSource<'a> {
 }
 
 pub fn load_bytes(path: &str) -> Resource<Vec<u8>> {
-    let r = Resource::unloaded();
+    let r = Resource::pending();
     {
         let path = path.to_string();
         let r = r.clone();
@@ -33,7 +33,7 @@ pub fn load_bytes(path: &str) -> Resource<Vec<u8>> {
 }
 
 pub fn load_image(path: &str) -> Resource<Image> {
-    let r = Resource::unloaded();
+    let r = Resource::pending();
     {
         let path = path.to_string();
         let r = r.clone();

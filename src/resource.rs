@@ -24,7 +24,7 @@ impl<T> Clone for Resource<T> {
 type ResourceState<T> = Option<Arc<Result<T, Box<dyn std::error::Error + Send + Sync>>>>;
 
 impl<T> Resource<T> {
-    fn unloaded() -> Self {
+    fn pending() -> Self {
         Self(Arc::new(CowCell::new(None)))
     }
 
