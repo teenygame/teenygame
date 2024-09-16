@@ -116,7 +116,7 @@ struct CachedImage {
 
 impl GraphicsContext {
     #[cfg(feature = "femtovg")]
-    pub fn create_image(
+    pub fn get_or_create_image(
         &mut self,
         img: Arc<Image>,
         flags: ImageFlags,
