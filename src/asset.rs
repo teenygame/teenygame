@@ -20,9 +20,11 @@ impl<T> Clone for Asset<T> {
     }
 }
 
-type Error = Box<dyn std::error::Error + Send + Sync>;
+#[derive(thiserror::Error, Debug, Clone)]
+#[error("{0}")]
+pub struct Error(Arc<Box<dyn std::error::Error + Send + Sync>>);
 
-type AssetState<T> = Option<Result<Arc<T>, Arc<Error>>>;
+type AssetState<T> = Option<Result<Arc<T>, Error>>;
 
 impl<T> Asset<T> {
     fn pending() -> Self {
@@ -35,33 +37,50 @@ impl<T> Asset<T> {
 }
 
 trait AnyAsset {
-    fn is_loaded(&self) -> bool;
+    fn status(&self) -> Option<Result<(), Error>>;
 }
 
 impl<T> AnyAsset for Asset<T> {
-    fn is_loaded(&self) -> bool {
-        self.0.lock().unwrap().is_some()
+    fn status(&self) -> Option<Result<(), Error>> {
+        self.0
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|r| r.as_ref().map(|_| ()).map_err(|e| e.clone()))
     }
 }
 
-pub struct ResourceGroup {
-    resources: Vec<Box<dyn AnyAsset>>,
+pub struct AssetLoadTracker {
+    assets: Vec<Box<dyn AnyAsset>>,
 }
 
-impl ResourceGroup {
+impl AssetLoadTracker {
     pub fn new() -> Self {
-        Self { resources: vec![] }
+        Self { assets: vec![] }
     }
 
-    pub fn add<T>(&mut self, r: Asset<T>) -> Asset<T>
+    pub fn add<T>(&mut self, asset: &Asset<T>)
     where
         Asset<T>: 'static,
     {
-        self.resources.push(Box::new(r.clone()));
-        r
+        self.assets.push(Box::new(asset.clone()));
     }
 
-    pub fn is_loaded(&self) -> bool {
-        self.resources.iter().all(|r| r.is_loaded())
+    pub fn len(&self) -> usize {
+        self.assets.len()
+    }
+
+    pub fn num_loaded(&self) -> Result<usize, Error> {
+        let mut n = 0;
+        for asset in self.assets.iter() {
+            let Some(status) = asset.status() else {
+                continue;
+            };
+            if let Err(err) = status {
+                return Err(err);
+            }
+            n += 1
+        }
+        Ok(n)
     }
 }

@@ -1,4 +1,4 @@
-use super::Asset;
+use super::{Asset, Error};
 use futures::channel::oneshot;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -44,7 +44,7 @@ pub fn load_bytes(path: &str) -> Asset<Vec<u8>> {
                     .await?)
             }
             .await
-            .map_err(|e: gloo_net::Error| Arc::new(Box::new(e).into()))
+            .map_err(|e: gloo_net::Error| Error(Arc::new(Box::new(e).into())))
             .map(|v| Arc::new(v));
 
             *r.0.lock().unwrap() = Some(res);
@@ -93,7 +93,7 @@ pub fn load_image(path: &str) -> Asset<Image> {
         spawn_local(async move {
             let res = load_html_image(&path)
                 .await
-                .map_err(|e| Arc::new(Box::new(WasmError::from(e)).into()))
+                .map_err(|e| Error(Arc::new(Box::new(WasmError::from(e)).into())))
                 .map(|img| Arc::new(Image(img)));
 
             *r.0.lock().unwrap() = Some(res);
