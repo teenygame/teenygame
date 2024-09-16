@@ -10,10 +10,9 @@ mod web;
 #[cfg(target_arch = "wasm32")]
 pub use web::*;
 
-use concread::{cowcell::CowCellReadTxn, CowCell};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-pub struct Resource<T>(Arc<CowCell<ResourceState<T>>>);
+pub struct Resource<T>(Arc<Mutex<ResourceState<T>>>);
 
 impl<T> Clone for Resource<T> {
     fn clone(&self) -> Self {
@@ -25,10 +24,10 @@ type ResourceState<T> = Option<Result<Arc<T>, Arc<Box<dyn std::error::Error + Se
 
 impl<T> Resource<T> {
     fn pending() -> Self {
-        Self(Arc::new(CowCell::new(None)))
+        Self(Arc::new(Mutex::new(None)))
     }
 
-    pub fn get(&self) -> CowCellReadTxn<ResourceState<T>> {
-        self.0.read()
+    pub fn get(&self) -> ResourceState<T> {
+        self.0.lock().unwrap().clone()
     }
 }

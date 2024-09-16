@@ -8,7 +8,7 @@ pub mod time;
 
 #[cfg(feature = "audio")]
 use audio::AudioContext;
-use gfx::{Canvas, Graphics};
+use gfx::{GraphicsContext, GraphicsState};
 use input::InputState;
 use time::{Duration, Instant};
 use winit::event::KeyEvent;
@@ -20,14 +20,14 @@ use winit::{
 };
 
 enum UserEvent {
-    Graphics(Graphics),
+    GraphicsState(GraphicsState),
 }
 
 pub struct Application<G> {
     #[cfg(feature = "audio")]
     audio: AudioContext,
 
-    gfx: Option<Graphics>,
+    gfx: Option<GraphicsState>,
 
     event_loop_proxy: EventLoopProxy<UserEvent>,
     input_state: InputState,
@@ -72,11 +72,11 @@ where
     G: Game,
 {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        let gfx = Graphics::new(self.gfx.take(), event_loop);
+        let gfx = GraphicsState::new(self.gfx.take(), event_loop);
 
         let event_loop_proxy = self.event_loop_proxy.clone();
         assert!(event_loop_proxy
-            .send_event(UserEvent::Graphics(gfx))
+            .send_event(UserEvent::GraphicsState(gfx))
             .is_ok());
     }
 
@@ -109,12 +109,6 @@ where
                     return;
                 };
 
-                let dpi_factor = gfx.window.scale_factor();
-                let size = gfx.window.inner_size();
-
-                gfx.canvas
-                    .set_size(size.width, size.height, dpi_factor as f32);
-
                 let new_redraw_time = Instant::now();
                 let frame_time = new_redraw_time - self.current_draw_time;
                 self.current_draw_time = new_redraw_time;
@@ -127,8 +121,7 @@ where
                         input: &self.input_state,
                         #[cfg(feature = "audio")]
                         audio: &self.audio,
-                        #[cfg(feature = "femtovg")]
-                        canvas: &mut gfx.canvas,
+                        gfx: &mut gfx.context,
                     });
                     self.input_state.update();
                     self.draw_time_accumulator -= G::TICK_TIME;
@@ -139,12 +132,11 @@ where
                     input: &self.input_state,
                     #[cfg(feature = "audio")]
                     audio: &self.audio,
-                    #[cfg(feature = "femtovg")]
-                    canvas: &mut gfx.canvas,
+                    gfx: &mut gfx.context,
                 });
 
-                gfx.canvas.flush();
-                gfx.swap_buffers();
+                gfx.flush_and_swap_buffers();
+                gfx.context.gc();
                 gfx.window.request_redraw();
             }
             WindowEvent::CloseRequested => event_loop.exit(),
@@ -184,7 +176,7 @@ where
 
     fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, event: UserEvent) {
         match event {
-            UserEvent::Graphics(gfx) => {
+            UserEvent::GraphicsState(gfx) => {
                 self.gfx = Some(gfx);
                 let gfx = self.gfx.as_mut().unwrap();
 
@@ -196,8 +188,7 @@ where
                     input: &self.input_state,
                     #[cfg(feature = "audio")]
                     audio: &self.audio,
-                    #[cfg(feature = "femtovg")]
-                    canvas: &mut gfx.canvas,
+                    gfx: &mut gfx.context,
                 }));
             }
         }
@@ -207,8 +198,7 @@ where
 pub struct Context<'a> {
     pub window: Window<'a>,
     pub input: &'a InputState,
-    #[cfg(feature = "femtovg")]
-    pub canvas: &'a mut Canvas,
+    pub gfx: &'a mut GraphicsContext,
     #[cfg(feature = "audio")]
     pub audio: &'a AudioContext,
 }

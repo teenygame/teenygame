@@ -1,11 +1,17 @@
 pub mod ninepatch;
 
-use std::rc::Rc;
+use std::{
+    collections::HashMap,
+    rc::Rc,
+    sync::{Arc, Weak},
+};
 
 use winit::{dpi::PhysicalSize, window::Window};
 
 #[cfg(feature = "femtovg")]
 pub use femtovg::*;
+
+use crate::resource::Image;
 
 #[cfg(feature = "femtovg")]
 pub type Canvas = femtovg::Canvas<femtovg::renderer::OpenGl>;
@@ -95,11 +101,64 @@ impl CanvasExt for Canvas {
     }
 }
 
-pub(crate) struct Graphics {
-    pub window: Rc<Window>,
-
+pub struct GraphicsContext {
     #[cfg(feature = "femtovg")]
     pub canvas: Canvas,
+
+    #[cfg(feature = "femtovg")]
+    image_cache: HashMap<(*const Image, ImageFlags), CachedImage>,
+}
+
+struct CachedImage {
+    weak: Weak<Image>,
+    id: ImageId,
+}
+
+impl GraphicsContext {
+    #[cfg(feature = "femtovg")]
+    pub fn create_image(
+        &mut self,
+        img: Arc<Image>,
+        flags: ImageFlags,
+    ) -> Result<femtovg::ImageId, femtovg::ErrorKind> {
+        match self
+            .image_cache
+            .entry((img.as_ref() as *const Image, flags))
+        {
+            std::collections::hash_map::Entry::Occupied(e) => Ok(e.get().id),
+            std::collections::hash_map::Entry::Vacant(e) => {
+                let id = self.canvas.create_image(
+                    femtovg::ImageSource::try_from(&*img)
+                        .map_err(|_| femtovg::ErrorKind::UnsupportedImageFormat)?,
+                    flags,
+                )?;
+                e.insert(CachedImage {
+                    weak: Arc::downgrade(&img),
+                    id,
+                });
+                Ok(id)
+            }
+        }
+    }
+
+    pub fn gc(&mut self) {
+        #[cfg(feature = "femtovg")]
+        {
+            self.image_cache.retain(|_, c| {
+                if c.weak.strong_count() > 0 {
+                    return true;
+                }
+
+                self.canvas.delete_image(c.id);
+                false
+            });
+        }
+    }
+}
+
+pub(crate) struct GraphicsState {
+    pub window: Rc<Window>,
+    pub context: GraphicsContext,
 
     #[cfg(not(target_arch = "wasm32"))]
     gl: Option<Gl>,
@@ -152,7 +211,7 @@ fn create_gl_context(
     }
 }
 
-impl Graphics {
+impl GraphicsState {
     #[allow(unused_variables, unused_mut)]
     pub fn new(mut gfx: Option<Self>, event_loop: &winit::event_loop::ActiveEventLoop) -> Self {
         let mut window_attrs = Window::default_attributes().with_title("");
@@ -252,20 +311,34 @@ impl Graphics {
             )
         };
 
+        #[cfg(feature = "femtovg")]
+        let canvas = {
+            let mut canvas = Canvas::new(renderer).unwrap();
+            let dpi = window.scale_factor();
+            let size = window.inner_size();
+            canvas.set_size(size.width, size.height, dpi as f32);
+            canvas
+        };
+
         window.request_redraw();
 
         Self {
             window: Rc::new(window),
 
-            #[cfg(feature = "femtovg")]
-            canvas: Canvas::new(renderer).unwrap(),
+            context: GraphicsContext {
+                #[cfg(feature = "femtovg")]
+                canvas,
+
+                #[cfg(feature = "femtovg")]
+                image_cache: HashMap::new(),
+            },
 
             #[cfg(not(target_arch = "wasm32"))]
             gl: Some(gl_graphics),
         }
     }
 
-    pub fn resize(&self, size: PhysicalSize<u32>) {
+    pub fn resize(&mut self, size: PhysicalSize<u32>) {
         #[cfg(target_arch = "wasm32")]
         {
             use winit::platform::web::WindowExtWebSys;
@@ -284,6 +357,26 @@ impl Graphics {
                 std::num::NonZero::new(size.height).unwrap(),
             );
         }
+
+        #[cfg(feature = "femtovg")]
+        {
+            let dpi = self.window.scale_factor();
+            self.context
+                .canvas
+                .set_size(size.width, size.height, dpi as f32);
+        }
+    }
+
+    pub fn flush_and_swap_buffers(&mut self) {
+        #[cfg(feature = "femtovg")]
+        self.context.canvas.flush();
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            use glutin::surface::GlSurface;
+            let Gl { context, surface } = self.gl.as_ref().unwrap();
+            surface.swap_buffers(context).unwrap();
+        }
     }
 
     pub fn suspend(&mut self) {
@@ -298,15 +391,6 @@ impl Graphics {
                     .treat_as_possibly_current(),
                 surface,
             });
-        }
-    }
-
-    pub fn swap_buffers(&self) {
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            use glutin::surface::GlSurface;
-            let Gl { context, surface } = self.gl.as_ref().unwrap();
-            surface.swap_buffers(context).unwrap();
         }
     }
 }

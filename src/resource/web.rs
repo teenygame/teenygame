@@ -43,12 +43,10 @@ pub fn load_bytes(path: &str) -> Resource<Vec<u8>> {
                     .await?)
             }
             .await
-            .map(|v| Arc::new(v))
-            .map_err(|e: gloo_net::Error| Arc::new(Box::new(e).into()));
+            .map_err(|e: gloo_net::Error| Arc::new(Box::new(e).into()))
+            .map(|v| Arc::new(v));
 
-            let mut txn = r.0.write();
-            *txn = Some(res);
-            txn.commit();
+            *r.0.lock().unwrap() = Some(res);
         });
     }
     r
@@ -94,12 +92,10 @@ pub fn load_image(path: &str) -> Resource<Image> {
         spawn_local(async move {
             let res = load_html_image(&path)
                 .await
-                .map(|img| Arc::new(Image(img)))
-                .map_err(|e| Arc::new(Box::new(WasmError::from(e)).into()));
+                .map_err(|e| Arc::new(Box::new(WasmError::from(e)).into()))
+                .map(|img| Arc::new(Image(img)));
 
-            let mut txn = r.0.write();
-            *txn = Some(res);
-            txn.commit();
+            *r.0.lock().unwrap() = Some(res);
         });
     }
 
