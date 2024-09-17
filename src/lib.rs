@@ -9,7 +9,8 @@ pub mod time;
 use audio::AudioContext;
 use gfx::{GraphicsContext, GraphicsState};
 use input::InputState;
-use time::{Duration, Instant};
+use std::time::Duration;
+use time::Instant;
 use winit::event::KeyEvent;
 use winit::keyboard::PhysicalKey;
 use winit::{
