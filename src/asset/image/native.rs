@@ -1,14 +1,8 @@
-use super::{Loadable, Raw};
+use crate::asset::Loadable;
 use image::ImageReader;
 use tokio::task::spawn_blocking;
 
 pub struct Image(image::DynamicImage);
-
-impl Loadable for Raw {
-    async fn load(path: &str) -> Result<Self, anyhow::Error> {
-        Ok(Raw(tokio::fs::read(path).await?))
-    }
-}
 
 #[cfg(feature = "femtovg")]
 impl<'a> TryFrom<&'a Image> for femtovg::ImageSource<'a> {

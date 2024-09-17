@@ -1,14 +1,8 @@
-#[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
-mod native;
+mod image;
+mod raw;
 
-#[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
-pub use native::*;
-
-#[cfg(target_arch = "wasm32")]
-mod web;
-
-#[cfg(target_arch = "wasm32")]
-pub use web::*;
+pub use image::Image;
+pub use raw::Raw;
 
 use std::{
     future::Future,
@@ -39,8 +33,6 @@ where
     fn load(path: &str) -> impl Future<Output = Result<Self, anyhow::Error>> + Send;
 }
 
-pub struct Raw(pub Vec<u8>);
-
 pub fn load<T>(path: &str) -> Asset<T>
 where
     T: Loadable,
@@ -65,18 +57,6 @@ where
         wasm_bindgen_futures::spawn_local(fut);
     }
     r
-}
-
-pub struct Postcard<T>(pub T);
-
-impl<T> Loadable for Postcard<T>
-where
-    T: for<'a> serde::Deserialize<'a> + Send + Sync + 'static,
-{
-    async fn load(path: &str) -> Result<Self, anyhow::Error> {
-        let b = Raw::load(path).await?;
-        Ok(Postcard(postcard::from_bytes(&b.0)?))
-    }
 }
 
 type Error = Arc<anyhow::Error>;
