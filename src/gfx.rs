@@ -141,7 +141,7 @@ impl GraphicsContext {
         }
     }
 
-    pub fn gc(&mut self) {
+    pub(super) fn gc(&mut self) {
         #[cfg(feature = "femtovg")]
         {
             self.image_id_cache.retain(|_, c| {
