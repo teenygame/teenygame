@@ -8,6 +8,12 @@ use web_sys::HtmlImageElement;
 
 pub struct Image(HtmlImageElement);
 
+#[cfg(feature = "wasm-unsafe-send-sync")]
+unsafe impl Send for Image {}
+
+#[cfg(feature = "wasm-unsafe-send-sync")]
+unsafe impl Sync for Image {}
+
 #[derive(thiserror::Error, Debug)]
 #[error("{0}")]
 pub struct WasmError(String);

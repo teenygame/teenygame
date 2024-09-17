@@ -12,6 +12,7 @@ default = ["tokio", "femtovg", "audio"]
 tokio = ["dep:tokio"]
 femtovg = ["dep:femtovg"]
 audio = ["dep:rodio"]
+wasm-unsafe-send-sync = []
 
 [dependencies]
 anyhow = "1"
