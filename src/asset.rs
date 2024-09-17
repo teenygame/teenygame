@@ -10,7 +10,10 @@ mod web;
 #[cfg(target_arch = "wasm32")]
 pub use web::*;
 
-use std::sync::{Arc, Mutex};
+use std::{
+    future::Future,
+    sync::{Arc, Mutex},
+};
 
 pub struct Asset<T>(Arc<Mutex<AssetState<T>>>);
 
@@ -20,11 +23,51 @@ impl<T> Clone for Asset<T> {
     }
 }
 
-#[derive(thiserror::Error, Debug, Clone)]
-#[error("{0}")]
-pub struct Error(Arc<Box<dyn std::error::Error + Send + Sync>>);
+#[cfg(target_arch = "wasm32")]
+pub trait Loadable
+where
+    Self: Sized + Sync + 'static,
+{
+    fn load(path: &str) -> impl Future<Output = Result<Self, anyhow::Error>>;
+}
 
-type AssetState<T> = Option<Result<Arc<T>, Error>>;
+#[cfg(not(target_arch = "wasm32"))]
+pub trait Loadable
+where
+    Self: Sized + Send + Sync + 'static,
+{
+    fn load(path: &str) -> impl Future<Output = Result<Self, anyhow::Error>> + Send;
+}
+
+pub struct Raw(pub Vec<u8>);
+
+pub fn load<T>(path: &str) -> Asset<T>
+where
+    T: Loadable,
+{
+    let r = Asset::pending();
+    {
+        let path = path.to_string();
+        let r = r.clone();
+
+        let fut = async move {
+            let res = T::load(&path)
+                .await
+                .map_err(|e| Arc::new(e))
+                .map(|v| Arc::new(v));
+            *r.0.lock().unwrap() = Some(res);
+        };
+
+        #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
+        tokio::task::spawn(fut);
+
+        #[cfg(target_arch = "wasm32")]
+        wasm_bindgen_futures::spawn_local(fut);
+    }
+    r
+}
+
+type AssetState<T> = Option<Result<Arc<T>, Arc<anyhow::Error>>>;
 
 impl<T> Asset<T> {
     fn pending() -> Self {
@@ -37,11 +80,11 @@ impl<T> Asset<T> {
 }
 
 trait AnyAsset {
-    fn status(&self) -> Option<Result<(), Error>>;
+    fn status(&self) -> Option<Result<(), Arc<anyhow::Error>>>;
 }
 
 impl<T> AnyAsset for Asset<T> {
-    fn status(&self) -> Option<Result<(), Error>> {
+    fn status(&self) -> Option<Result<(), Arc<anyhow::Error>>> {
         self.0
             .lock()
             .unwrap()
@@ -70,7 +113,7 @@ impl AssetLoadTracker {
         self.assets.len()
     }
 
-    pub fn num_loaded(&self) -> Result<usize, Error> {
+    pub fn num_loaded(&self) -> Result<usize, Arc<anyhow::Error>> {
         self.assets.iter().try_fold(0, |acc, x| {
             Ok(acc
                 + match x.status() {
