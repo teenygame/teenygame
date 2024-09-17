@@ -1,6 +1,10 @@
+use std::{io::Cursor, sync::Arc};
+
 use crate::asset::Loadable;
-use image::ImageReader;
+use image::{ImageFormat, ImageReader};
 use tokio::task::spawn_blocking;
+
+use super::{ImageAndMetadata, Metadata};
 
 pub struct Image(image::DynamicImage);
 
@@ -24,5 +28,21 @@ impl Loadable for Image {
         })
         .await
         .unwrap()
+    }
+}
+
+impl<M> Loadable for ImageAndMetadata<M>
+where
+    M: Metadata + Sync + Send + 'static,
+{
+    async fn load(path: &str) -> Result<Self, anyhow::Error> {
+        let buf = tokio::fs::read(path).await?;
+        let mut ir = ImageReader::new(Cursor::new(&buf[..]));
+        ir.set_format(ImageFormat::from_path(path)?);
+        let image = ir.decode()?;
+        Ok(Self {
+            image: Arc::new(Image(image)),
+            metadata: M::load(&buf)?,
+        })
     }
 }

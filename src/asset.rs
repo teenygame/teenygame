@@ -1,8 +1,8 @@
 mod image;
 mod raw;
 
-pub use image::Image;
-pub use raw::Raw;
+pub use image::*;
+pub use raw::*;
 
 use std::{
     future::Future,

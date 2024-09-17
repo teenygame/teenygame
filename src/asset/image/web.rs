@@ -1,7 +1,11 @@
+use super::{ImageAndMetadata, Metadata};
 use crate::asset::Loadable;
 use futures::channel::oneshot;
+use gloo_file::{Blob, ObjectUrl};
+use gloo_net::http::Request;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use web_sys::js_sys::JsString;
 use web_sys::HtmlImageElement;
@@ -62,5 +66,20 @@ impl Loadable for Image {
 
         rx.await.unwrap().map_err(|e| WasmError::from(e))?;
         Ok(Image(img))
+    }
+}
+
+impl<M> Loadable for ImageAndMetadata<M>
+where
+    M: Metadata + Sync + 'static,
+{
+    async fn load(path: &str) -> Result<Self, anyhow::Error> {
+        let data = Request::get(&path).send().await?.binary().await?;
+        let blob = Blob::new(&data[..]);
+        let blob_url = ObjectUrl::from(blob);
+        Ok(ImageAndMetadata {
+            image: Arc::new(Image::load(&blob_url).await?),
+            metadata: M::load(&data)?,
+        })
     }
 }
