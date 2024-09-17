@@ -8,9 +8,6 @@ use web_sys::HtmlImageElement;
 
 pub struct Image(HtmlImageElement);
 
-unsafe impl Sync for Image {}
-unsafe impl Send for Image {}
-
 #[derive(thiserror::Error, Debug)]
 #[error("{0}")]
 pub struct WasmError(String);
