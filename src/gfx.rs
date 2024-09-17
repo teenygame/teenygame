@@ -6,7 +6,10 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use winit::{dpi::PhysicalSize, window::Window};
+use winit::{
+    dpi::{LogicalSize, PhysicalSize},
+    window::Window,
+};
 
 #[cfg(feature = "femtovg")]
 pub use femtovg::*;
@@ -273,6 +276,8 @@ impl GraphicsState {
 
                 (window, gl_context)
             };
+
+            let _ = window.request_inner_size(LogicalSize::new(1280, 720));
 
             let gl_config = gl_context.config();
             let gl_display = gl_config.display();
