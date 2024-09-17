@@ -1,5 +1,5 @@
-use super::{ImageAndMetadata, Metadata};
-use crate::asset::Loadable;
+use super::ImageAndMetadata;
+use crate::asset::{Loadable, Metadata};
 use futures::channel::oneshot;
 use gloo_file::{Blob, ObjectUrl};
 use gloo_net::http::Request;

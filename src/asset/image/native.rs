@@ -1,10 +1,10 @@
 use std::{io::Cursor, sync::Arc};
 
-use crate::asset::Loadable;
+use crate::asset::{Loadable, Metadata};
 use image::{ImageFormat, ImageReader};
 use tokio::task::spawn_blocking;
 
-use super::{ImageAndMetadata, Metadata};
+use super::ImageAndMetadata;
 
 pub struct Image(image::DynamicImage);
 
