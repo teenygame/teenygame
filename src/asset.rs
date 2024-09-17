@@ -67,7 +67,9 @@ where
     r
 }
 
-type AssetState<T> = Option<Result<Arc<T>, Arc<anyhow::Error>>>;
+type Error = Arc<anyhow::Error>;
+
+type AssetState<T> = Option<Result<Arc<T>, Error>>;
 
 impl<T> Asset<T> {
     fn pending() -> Self {
@@ -80,11 +82,11 @@ impl<T> Asset<T> {
 }
 
 trait AnyAsset {
-    fn status(&self) -> Option<Result<(), Arc<anyhow::Error>>>;
+    fn status(&self) -> Option<Result<(), Error>>;
 }
 
 impl<T> AnyAsset for Asset<T> {
-    fn status(&self) -> Option<Result<(), Arc<anyhow::Error>>> {
+    fn status(&self) -> Option<Result<(), Error>> {
         self.0
             .lock()
             .unwrap()
@@ -113,7 +115,7 @@ impl AssetLoadTracker {
         self.assets.len()
     }
 
-    pub fn num_loaded(&self) -> Result<usize, Arc<anyhow::Error>> {
+    pub fn num_loaded(&self) -> Result<usize, Error> {
         self.assets.iter().try_fold(0, |acc, x| {
             Ok(acc
                 + match x.status() {
