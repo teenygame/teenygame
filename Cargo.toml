@@ -8,10 +8,11 @@ license = "LGPL-3.0-or-later"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["tokio", "femtovg", "audio"]
+default = ["tokio", "femtovg", "audio", "postcard"]
 tokio = ["dep:tokio"]
 femtovg = ["dep:femtovg"]
 audio = ["dep:rodio"]
+postcard = ["dep:postcard"]
 wasm-unsafe-send-sync = []
 
 [dependencies]
@@ -21,6 +22,8 @@ log = "0.4"
 femtovg = { version = "0.9.2", optional = true }
 futures = "0.3.30"
 thiserror = "1"
+serde = "1"
+postcard = { version = "1.0.10", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"

@@ -67,6 +67,18 @@ where
     r
 }
 
+pub struct Postcard<T>(pub T);
+
+impl<T> Loadable for Postcard<T>
+where
+    T: for<'a> serde::Deserialize<'a> + Send + Sync + 'static,
+{
+    async fn load(path: &str) -> Result<Self, anyhow::Error> {
+        let b = Raw::load(path).await?;
+        Ok(Postcard(postcard::from_bytes(&b.0)?))
+    }
+}
+
 type Error = Arc<anyhow::Error>;
 
 type AssetState<T> = Option<Result<Arc<T>, Error>>;
