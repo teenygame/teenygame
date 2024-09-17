@@ -71,16 +71,15 @@ impl AssetLoadTracker {
     }
 
     pub fn num_loaded(&self) -> Result<usize, Error> {
-        let mut n = 0;
-        for asset in self.assets.iter() {
-            let Some(status) = asset.status() else {
-                continue;
-            };
-            if let Err(err) = status {
-                return Err(err);
-            }
-            n += 1
-        }
-        Ok(n)
+        self.assets.iter().try_fold(0, |acc, x| {
+            Ok(acc
+                + match x.status() {
+                    Some(Ok(())) => 1,
+                    Some(Err(e)) => {
+                        return Err(e);
+                    }
+                    None => 0,
+                })
+        })
     }
 }
