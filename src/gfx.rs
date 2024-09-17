@@ -81,18 +81,16 @@ impl CanvasExt for Canvas {
         height: f32,
     ) {
         let (iw, ih) = self.image_size(id).unwrap();
-        let ax = width / s_width;
-        let ay = height / s_height;
         let mut path = Path::new();
         path.rect(x, y, width, height);
         self.fill_path(
             &path,
             &Paint::image(
                 id,
-                x - sx * ax,
-                y - sy * ay,
-                iw as f32 * ax,
-                ih as f32 * ay,
+                x - (sx * width / s_width),
+                y - (sy * height / s_height),
+                iw as f32 * width / s_width,
+                ih as f32 * height / s_height,
                 0.0,
                 1.0,
             )
