@@ -8,9 +8,8 @@ license = "LGPL-3.0-or-later"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["tokio", "femtovg", "audio"]
+default = ["tokio", "audio"]
 tokio = ["dep:tokio"]
-femtovg = ["dep:femtovg"]
 audio = ["dep:rodio"]
 wasm-unsafe-send-sync = []
 
@@ -18,7 +17,7 @@ wasm-unsafe-send-sync = []
 anyhow = "1"
 winit = "0.30"
 log = "0.4"
-femtovg = { version = "0.9.2", optional = true }
+femtovg = "0.9.2"
 futures = "0.3.30"
 thiserror = "1"
 serde = "1"

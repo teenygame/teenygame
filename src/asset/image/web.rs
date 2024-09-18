@@ -12,6 +12,12 @@ use web_sys::HtmlImageElement;
 
 pub struct Image(HtmlImageElement);
 
+impl Image {
+    pub fn size(&self) -> (u32, u32) {
+        (self.0.width(), self.0.height())
+    }
+}
+
 #[cfg(feature = "wasm-unsafe-send-sync")]
 unsafe impl Send for Image {}
 
@@ -28,12 +34,9 @@ impl From<JsValue> for WasmError {
     }
 }
 
-#[cfg(feature = "femtovg")]
-impl<'a> TryFrom<&'a Image> for femtovg::ImageSource<'a> {
-    type Error = femtovg::ErrorKind;
-
-    fn try_from(value: &'a Image) -> Result<Self, Self::Error> {
-        Ok(femtovg::ImageSource::from(&value.0))
+impl<'a> From<&'a Image> for femtovg::ImageSource<'a> {
+    fn from(value: &'a Image) -> Self {
+        femtovg::ImageSource::from(&value.0)
     }
 }
 

@@ -7,7 +7,7 @@ pub mod time;
 
 #[cfg(feature = "audio")]
 use audio::AudioContext;
-use gfx::{GraphicsContext, GraphicsState};
+use gfx::{Canvas, GraphicsState};
 use input::InputState;
 use std::time::Duration;
 use time::Instant;
@@ -121,7 +121,7 @@ where
                         input: &self.input_state,
                         #[cfg(feature = "audio")]
                         audio: &self.audio,
-                        gfx: &mut gfx.context,
+                        canvas: &mut gfx.canvas,
                     });
                     self.input_state.update();
                     self.draw_time_accumulator -= G::TICK_TIME;
@@ -132,11 +132,11 @@ where
                     input: &self.input_state,
                     #[cfg(feature = "audio")]
                     audio: &self.audio,
-                    gfx: &mut gfx.context,
+                    canvas: &mut gfx.canvas,
                 });
 
                 gfx.flush_and_swap_buffers();
-                gfx.context.gc();
+                gfx.canvas.gc();
                 gfx.window.request_redraw();
             }
             WindowEvent::CloseRequested => event_loop.exit(),
@@ -185,7 +185,7 @@ where
                     input: &self.input_state,
                     #[cfg(feature = "audio")]
                     audio: &self.audio,
-                    gfx: &mut gfx.context,
+                    canvas: &mut gfx.canvas,
                 }));
 
                 self.gfx = Some(gfx);
@@ -197,7 +197,7 @@ where
 pub struct Context<'a> {
     pub window: Window<'a>,
     pub input: &'a InputState,
-    pub gfx: &'a mut GraphicsContext,
+    pub canvas: &'a mut Canvas,
     #[cfg(feature = "audio")]
     pub audio: &'a AudioContext,
 }
