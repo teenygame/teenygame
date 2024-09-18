@@ -128,6 +128,7 @@ impl<T> AnyWeak for Weak<T> {
 
 pub struct Canvas {
     canvas: femtovg::Canvas<OpenGl>,
+    size: (u32, u32),
     render_target: Option<Arc<RenderTarget>>,
     image_id_cache: HashMap<(*const c_void, ImageFlags), CachedImageId>,
 }
@@ -136,9 +137,14 @@ impl Canvas {
     pub(super) fn new(canvas: femtovg::Canvas<OpenGl>) -> Self {
         Self {
             canvas,
+            size: (0, 0),
             render_target: None,
             image_id_cache: HashMap::new(),
         }
+    }
+
+    pub fn size(&self) -> (u32, u32) {
+        self.size
     }
 
     fn get_or_create_image(&mut self, img: Arc<Image>, flags: ImageFlags) -> femtovg::ImageId {
@@ -173,6 +179,7 @@ impl Canvas {
     }
 
     pub(super) fn set_size(&mut self, width: u32, height: u32, dpi: f32) {
+        self.size = (width, height);
         self.canvas.set_size(width, height, dpi);
     }
 

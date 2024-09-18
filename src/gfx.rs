@@ -158,13 +158,11 @@ impl GraphicsState {
             )
         };
 
-        let canvas = Canvas::new({
-            let mut canvas = femtovg::Canvas::new(renderer).unwrap();
-            let dpi = window.scale_factor();
-            let size = window.inner_size();
-            canvas.set_size(size.width, size.height, dpi as f32);
-            canvas
-        });
+        let mut canvas = Canvas::new(femtovg::Canvas::new(renderer).unwrap());
+
+        let dpi = window.scale_factor();
+        let size = window.inner_size();
+        canvas.set_size(size.width, size.height, dpi as f32);
 
         window.request_redraw();
 

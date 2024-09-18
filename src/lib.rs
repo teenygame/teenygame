@@ -127,13 +127,7 @@ where
                     self.draw_time_accumulator -= G::TICK_TIME;
                 }
 
-                game.draw(&mut Context {
-                    window: Window(&*gfx.window),
-                    input: &self.input_state,
-                    #[cfg(feature = "audio")]
-                    audio: &self.audio,
-                    canvas: &mut gfx.canvas,
-                });
+                game.draw(&mut gfx.canvas);
 
                 gfx.flush_and_swap_buffers();
                 gfx.canvas.gc();
@@ -227,7 +221,7 @@ pub trait Game {
 
     fn new(cx: &mut Context) -> Self;
     fn update(&mut self, cx: &mut Context);
-    fn draw(&mut self, cx: &mut Context);
+    fn draw(&mut self, cx: &mut Canvas);
 }
 
 pub fn run<G>()
