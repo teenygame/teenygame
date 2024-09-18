@@ -176,10 +176,7 @@ where
 
     fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, event: UserEvent) {
         match event {
-            UserEvent::GraphicsState(gfx) => {
-                self.gfx = Some(gfx);
-                let gfx = self.gfx.as_mut().unwrap();
-
+            UserEvent::GraphicsState(mut gfx) => {
                 #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
                 let _guard = self.tokio_rt.enter();
 
@@ -190,6 +187,8 @@ where
                     audio: &self.audio,
                     gfx: &mut gfx.context,
                 }));
+
+                self.gfx = Some(gfx);
             }
         }
     }
