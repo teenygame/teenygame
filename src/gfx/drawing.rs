@@ -7,8 +7,6 @@ use std::{
 
 use femtovg::{renderer::OpenGl, ImageFlags, ImageId, Paint, PixelFormat, Transform2D};
 
-use crate::asset::Image;
-
 pub struct AffineTransform([f32; 6]);
 
 impl AffineTransform {
@@ -83,12 +81,12 @@ impl Mul<AffineTransform> for AffineTransform {
     }
 }
 
-pub trait Drawable {
+pub trait Image {
     fn get_image_id(&self, canvas: &mut Canvas) -> femtovg::ImageId;
     fn size(&self, canvas: &mut Canvas) -> (u32, u32);
 }
 
-impl Drawable for Arc<Image> {
+impl Image for Arc<crate::asset::Image> {
     fn get_image_id(&self, canvas: &mut Canvas) -> femtovg::ImageId {
         canvas.get_or_create_image(self.clone(), ImageFlags::NEAREST)
     }
@@ -100,7 +98,7 @@ impl Drawable for Arc<Image> {
 
 pub struct Framebuffer(ImageId);
 
-impl Drawable for Arc<Framebuffer> {
+impl Image for Arc<Framebuffer> {
     fn get_image_id(&self, _canvas: &mut Canvas) -> femtovg::ImageId {
         self.0
     }
@@ -223,7 +221,11 @@ impl Canvas {
         self.size
     }
 
-    fn get_or_create_image(&mut self, img: Arc<Image>, flags: ImageFlags) -> femtovg::ImageId {
+    fn get_or_create_image(
+        &mut self,
+        img: Arc<crate::asset::Image>,
+        flags: ImageFlags,
+    ) -> femtovg::ImageId {
         match self
             .image_id_cache
             .entry((img.as_ref() as *const _ as *const c_void, flags))
@@ -291,7 +293,7 @@ impl Canvas {
     #[inline]
     pub fn draw_image<D>(&mut self, d: &D, x: f32, y: f32)
     where
-        D: Drawable,
+        D: Image,
     {
         let (iw, ih) = d.size(self);
         self.draw_image_destination_scale(d, x, y, iw as f32, ih as f32);
@@ -306,7 +308,7 @@ impl Canvas {
         width: f32,
         height: f32,
     ) where
-        D: Drawable,
+        D: Image,
     {
         let (iw, ih) = d.size(self);
         self.draw_image_source_clip_destination_scale(
@@ -326,7 +328,7 @@ impl Canvas {
         width: f32,
         height: f32,
     ) where
-        D: Drawable,
+        D: Image,
     {
         let (iw, ih) = d.size(self);
         let id = d.get_image_id(self);
