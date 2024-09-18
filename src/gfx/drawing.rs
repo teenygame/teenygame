@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     ffi::c_void,
-    ops::{Mul, MulAssign},
+    ops::{Deref, DerefMut, Mul, MulAssign},
     sync::{Arc, Weak},
 };
 
@@ -126,6 +126,38 @@ impl<T> AnyWeak for Weak<T> {
     }
 }
 
+pub struct CanvasTransformGuard<'a> {
+    canvas: &'a mut Canvas,
+}
+
+impl<'a> CanvasTransformGuard<'a> {
+    fn new(canvas: &'a mut Canvas, t: &AffineTransform) -> Self {
+        canvas.canvas.save();
+        canvas.canvas.set_transform(&Transform2D(t.0.clone()));
+        Self { canvas }
+    }
+}
+
+impl<'a> Drop for CanvasTransformGuard<'a> {
+    fn drop(&mut self) {
+        self.canvas.canvas.restore();
+    }
+}
+
+impl<'a> Deref for CanvasTransformGuard<'a> {
+    type Target = Canvas;
+
+    fn deref(&self) -> &Self::Target {
+        self.canvas
+    }
+}
+
+impl<'a> DerefMut for CanvasTransformGuard<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.canvas
+    }
+}
+
 pub struct Canvas {
     canvas: femtovg::Canvas<OpenGl>,
     size: (u32, u32),
@@ -214,16 +246,8 @@ impl Canvas {
         self.framebuffer = fb;
     }
 
-    pub fn push_state(&mut self) {
-        self.canvas.save();
-    }
-
-    pub fn transform(&mut self, t: &AffineTransform) {
-        self.canvas.set_transform(&Transform2D(t.0.clone()));
-    }
-
-    pub fn pop_state(&mut self) {
-        self.canvas.restore();
+    pub fn transform<'a>(&'a mut self, t: &AffineTransform) -> CanvasTransformGuard<'a> {
+        CanvasTransformGuard::new(self, t)
     }
 
     #[inline]

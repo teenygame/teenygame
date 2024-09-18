@@ -117,7 +117,6 @@ where
 
                 while self.draw_time_accumulator >= G::TICK_TIME {
                     game.update(&mut Context {
-                        window: Window(&*gfx.window),
                         input: &self.input_state,
                         #[cfg(feature = "audio")]
                         audio: &self.audio,
@@ -175,7 +174,6 @@ where
                 let _guard = self.tokio_rt.enter();
 
                 self.game = Some(G::new(&mut Context {
-                    window: Window(&*gfx.window),
                     input: &self.input_state,
                     #[cfg(feature = "audio")]
                     audio: &self.audio,
@@ -189,31 +187,10 @@ where
 }
 
 pub struct Context<'a> {
-    pub window: Window<'a>,
     pub input: &'a InputState,
     pub canvas: &'a mut Canvas,
     #[cfg(feature = "audio")]
     pub audio: &'a AudioContext,
-}
-
-pub struct Window<'a>(&'a winit::window::Window);
-
-impl<'a> Window<'a> {
-    pub fn size(&self) -> (u32, u32) {
-        self.0.inner_size().into()
-    }
-
-    pub fn set_title(&self, title: &str) {
-        #[cfg(target_arch = "wasm32")]
-        {
-            web_sys::window()
-                .unwrap()
-                .document()
-                .unwrap()
-                .set_title(title);
-        }
-        self.0.set_title(title)
-    }
 }
 
 pub trait Game {
