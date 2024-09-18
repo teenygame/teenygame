@@ -245,7 +245,13 @@ impl Canvas {
         }
     }
 
-    pub(crate) fn gc(&mut self) {
+    pub(super) fn set_size(&mut self, width: u32, height: u32, dpi: f32) {
+        self.size = (width, height);
+        self.inner.set_size(width, height, dpi);
+    }
+
+    pub(super) fn flush(&mut self) {
+        self.inner.flush();
         self.image_id_cache.retain(|_, c| {
             if c.weak.strong_count() > 0 {
                 return true;
@@ -254,15 +260,6 @@ impl Canvas {
             self.inner.delete_image(c.id);
             false
         });
-    }
-
-    pub(super) fn set_size(&mut self, width: u32, height: u32, dpi: f32) {
-        self.size = (width, height);
-        self.inner.set_size(width, height, dpi);
-    }
-
-    pub(super) fn flush(&mut self) {
-        self.inner.flush();
     }
 
     pub fn create_framebuffer(&mut self, width: u32, height: u32) -> Arc<Framebuffer> {

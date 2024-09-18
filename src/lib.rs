@@ -129,7 +129,6 @@ where
                 game.draw(&mut gfx.canvas);
 
                 gfx.flush_and_swap_buffers();
-                gfx.canvas.gc();
                 gfx.window.request_redraw();
             }
             WindowEvent::CloseRequested => event_loop.exit(),
