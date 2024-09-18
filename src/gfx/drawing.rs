@@ -106,7 +106,7 @@ impl Drawable for Arc<Framebuffer> {
     }
 
     fn size(&self, canvas: &mut Canvas) -> (u32, u32) {
-        let size = canvas.canvas.image_info(self.0).unwrap().size();
+        let size = canvas.inner.image_info(self.0).unwrap().size();
         (size.width as u32, size.height as u32)
     }
 }
@@ -132,15 +132,15 @@ pub struct CanvasTransformGuard<'a> {
 
 impl<'a> CanvasTransformGuard<'a> {
     fn new(canvas: &'a mut Canvas, t: &AffineTransform) -> Self {
-        canvas.canvas.save();
-        canvas.canvas.set_transform(&Transform2D(t.0.clone()));
+        canvas.inner.save();
+        canvas.inner.set_transform(&Transform2D(t.0.clone()));
         Self { canvas }
     }
 }
 
 impl<'a> Drop for CanvasTransformGuard<'a> {
     fn drop(&mut self) {
-        self.canvas.canvas.restore();
+        self.canvas.inner.restore();
     }
 }
 
@@ -158,8 +158,52 @@ impl<'a> DerefMut for CanvasTransformGuard<'a> {
     }
 }
 
+pub struct CanvasFramebufferGuard<'a> {
+    canvas: &'a mut Canvas,
+    prev_fb: Option<Arc<Framebuffer>>,
+}
+
+impl<'a> CanvasFramebufferGuard<'a> {
+    fn new(canvas: &'a mut Canvas, fb: Arc<Framebuffer>) -> Self {
+        let prev_fb = canvas.framebuffer.take();
+        canvas
+            .inner
+            .set_render_target(femtovg::RenderTarget::Image(fb.0));
+        canvas.framebuffer = Some(fb);
+        Self { canvas, prev_fb }
+    }
+}
+
+impl<'a> Drop for CanvasFramebufferGuard<'a> {
+    fn drop(&mut self) {
+        if let Some(fb) = &self.prev_fb {
+            self.canvas
+                .inner
+                .set_render_target(femtovg::RenderTarget::Image(fb.0));
+        } else {
+            self.canvas
+                .inner
+                .set_render_target(femtovg::RenderTarget::Screen);
+        }
+        self.canvas.framebuffer = self.prev_fb.take();
+    }
+}
+
+impl<'a> Deref for CanvasFramebufferGuard<'a> {
+    type Target = Canvas;
+
+    fn deref(&self) -> &Self::Target {
+        self.canvas
+    }
+}
+
+impl<'a> DerefMut for CanvasFramebufferGuard<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.canvas
+    }
+}
 pub struct Canvas {
-    canvas: femtovg::Canvas<OpenGl>,
+    inner: femtovg::Canvas<OpenGl>,
     size: (u32, u32),
     framebuffer: Option<Arc<Framebuffer>>,
     image_id_cache: HashMap<(*const c_void, ImageFlags), CachedImageId>,
@@ -168,7 +212,7 @@ pub struct Canvas {
 impl Canvas {
     pub(super) fn new(canvas: femtovg::Canvas<OpenGl>) -> Self {
         Self {
-            canvas,
+            inner: canvas,
             size: (0, 0),
             framebuffer: None,
             image_id_cache: HashMap::new(),
@@ -187,7 +231,7 @@ impl Canvas {
             std::collections::hash_map::Entry::Occupied(e) => e.get().id,
             std::collections::hash_map::Entry::Vacant(e) => {
                 let id = self
-                    .canvas
+                    .inner
                     .create_image(femtovg::ImageSource::from(&*img), flags)
                     .unwrap();
                 e.insert(CachedImageId {
@@ -205,24 +249,24 @@ impl Canvas {
                 return true;
             }
 
-            self.canvas.delete_image(c.id);
+            self.inner.delete_image(c.id);
             false
         });
     }
 
     pub(super) fn set_size(&mut self, width: u32, height: u32, dpi: f32) {
         self.size = (width, height);
-        self.canvas.set_size(width, height, dpi);
+        self.inner.set_size(width, height, dpi);
     }
 
     pub(super) fn flush(&mut self) {
-        self.canvas.flush();
+        self.inner.flush();
     }
 
     pub fn create_framebuffer(&mut self, width: u32, height: u32) -> Arc<Framebuffer> {
         let flags = ImageFlags::FLIP_Y | ImageFlags::NEAREST;
         let id = self
-            .canvas
+            .inner
             .create_image_empty(width as usize, height as usize, PixelFormat::Rgba8, flags)
             .unwrap();
         let fb = Arc::new(Framebuffer(id));
@@ -236,17 +280,11 @@ impl Canvas {
         fb
     }
 
-    pub fn set_framebuffer(&mut self, fb: Option<Arc<Framebuffer>>) {
-        if let Some(fb) = &fb {
-            self.canvas
-                .set_render_target(femtovg::RenderTarget::Image(fb.0));
-        } else {
-            self.canvas.set_render_target(femtovg::RenderTarget::Screen);
-        }
-        self.framebuffer = fb;
+    pub fn use_framebuffer(&mut self, fb: Arc<Framebuffer>) -> CanvasFramebufferGuard {
+        CanvasFramebufferGuard::new(self, fb)
     }
 
-    pub fn transform<'a>(&'a mut self, t: &AffineTransform) -> CanvasTransformGuard<'a> {
+    pub fn transform(&mut self, t: &AffineTransform) -> CanvasTransformGuard {
         CanvasTransformGuard::new(self, t)
     }
 
@@ -292,7 +330,7 @@ impl Canvas {
     {
         let (iw, ih) = d.size(self);
         let id = d.get_image_id(self);
-        self.canvas.fill_path(
+        self.inner.fill_path(
             &Path::new().rect(x, y, width, height).0,
             &femtovg::Paint::image(
                 id,
@@ -308,17 +346,17 @@ impl Canvas {
     }
 
     pub fn clear_rect(&mut self, x: u32, y: u32, width: u32, height: u32, color: Color) {
-        self.canvas.clear_rect(x, y, width, height, color.into());
+        self.inner.clear_rect(x, y, width, height, color.into());
     }
 
     pub fn fill_path(&mut self, path: &Path, fill: &Fill) {
-        self.canvas.fill_path(&path.0, &fill.to_paint());
+        self.inner.fill_path(&path.0, &fill.to_paint());
     }
 
     pub fn stroke_path(&mut self, path: &Path, stroke: &Stroke, fill: &Fill) {
         let mut paint = fill.to_paint();
         stroke.apply_to_paint(&mut paint);
-        self.canvas.stroke_path(&path.0, &fill.to_paint());
+        self.inner.stroke_path(&path.0, &fill.to_paint());
     }
 }
 
