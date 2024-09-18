@@ -98,9 +98,9 @@ impl Drawable for Arc<Image> {
     }
 }
 
-pub struct RenderTarget(ImageId);
+pub struct Framebuffer(ImageId);
 
-impl Drawable for Arc<RenderTarget> {
+impl Drawable for Arc<Framebuffer> {
     fn get_image_id(&self, _canvas: &mut Canvas) -> femtovg::ImageId {
         self.0
     }
@@ -129,7 +129,7 @@ impl<T> AnyWeak for Weak<T> {
 pub struct Canvas {
     canvas: femtovg::Canvas<OpenGl>,
     size: (u32, u32),
-    render_target: Option<Arc<RenderTarget>>,
+    framebuffer: Option<Arc<Framebuffer>>,
     image_id_cache: HashMap<(*const c_void, ImageFlags), CachedImageId>,
 }
 
@@ -138,7 +138,7 @@ impl Canvas {
         Self {
             canvas,
             size: (0, 0),
-            render_target: None,
+            framebuffer: None,
             image_id_cache: HashMap::new(),
         }
     }
@@ -187,31 +187,31 @@ impl Canvas {
         self.canvas.flush();
     }
 
-    pub fn create_render_target(&mut self, width: u32, height: u32) -> Arc<RenderTarget> {
+    pub fn create_framebuffer(&mut self, width: u32, height: u32) -> Arc<Framebuffer> {
         let flags = ImageFlags::FLIP_Y | ImageFlags::NEAREST;
         let id = self
             .canvas
             .create_image_empty(width as usize, height as usize, PixelFormat::Rgba8, flags)
             .unwrap();
-        let rt = Arc::new(RenderTarget(id));
+        let fb = Arc::new(Framebuffer(id));
         self.image_id_cache.insert(
-            (rt.as_ref() as *const _ as *const c_void, flags),
+            (fb.as_ref() as *const _ as *const c_void, flags),
             CachedImageId {
-                weak: Box::new(Arc::downgrade(&rt)),
+                weak: Box::new(Arc::downgrade(&fb)),
                 id,
             },
         );
-        rt
+        fb
     }
 
-    pub fn set_render_target(&mut self, rt: Option<Arc<RenderTarget>>) {
-        if let Some(rt) = &rt {
+    pub fn set_framebuffer(&mut self, fb: Option<Arc<Framebuffer>>) {
+        if let Some(fb) = &fb {
             self.canvas
-                .set_render_target(femtovg::RenderTarget::Image(rt.0));
+                .set_render_target(femtovg::RenderTarget::Image(fb.0));
         } else {
             self.canvas.set_render_target(femtovg::RenderTarget::Screen);
         }
-        self.render_target = rt;
+        self.framebuffer = fb;
     }
 
     pub fn push_state(&mut self) {
