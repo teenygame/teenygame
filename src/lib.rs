@@ -211,6 +211,14 @@ impl<'a> Window<'a> {
     }
 
     pub fn set_title(&self, title: &str) {
+        #[cfg(target_arch = "wasm32")]
+        {
+            web_sys::window()
+                .unwrap()
+                .document()
+                .unwrap()
+                .set_title(title);
+        }
         self.0.set_title(title)
     }
 }
