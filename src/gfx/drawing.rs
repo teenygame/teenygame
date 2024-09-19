@@ -329,7 +329,7 @@ impl Canvas {
     ) where
         D: Image,
     {
-        self.inner.global_composite_operation(blend_mode.into());
+        self.set_blend_mode(blend_mode);
         let (iw, ih) = d.size(self);
         let id = d.get_image_id(self);
         self.inner.fill_path(
@@ -345,30 +345,27 @@ impl Canvas {
             )
             .with_anti_alias(false),
         );
-        self.inner
-            .global_composite_operation(femtovg::CompositeOperation::SourceOver);
     }
 
     pub fn clear_rect(&mut self, x: u32, y: u32, width: u32, height: u32, color: Color) {
         self.inner.clear_rect(x, y, width, height, color.into());
     }
 
+    fn set_blend_mode(&mut self, BlendMode { sfactor, dfactor }: BlendMode) {
+        self.inner
+            .global_composite_blend_func(sfactor.into(), dfactor.into());
+    }
+
     pub fn fill_path(&mut self, path: &Path, paint: &Paint) {
-        self.inner
-            .global_composite_operation(paint.blend_mode.into());
+        self.set_blend_mode(paint.blend_mode);
         self.inner.fill_path(&path.0, &paint.to_impl_paint());
-        self.inner
-            .global_composite_operation(femtovg::CompositeOperation::SourceOver);
     }
 
     pub fn stroke_path(&mut self, path: &Path, stroke: &Stroke, paint: &Paint) {
-        self.inner
-            .global_composite_operation(paint.blend_mode.into());
+        self.set_blend_mode(paint.blend_mode);
         let mut impl_paint = paint.to_impl_paint();
         stroke.apply_to_paint(&mut impl_paint);
         self.inner.stroke_path(&path.0, &impl_paint);
-        self.inner
-            .global_composite_operation(femtovg::CompositeOperation::SourceOver);
     }
 }
 
@@ -381,7 +378,7 @@ pub struct Color {
 }
 
 impl Color {
-    pub fn rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
+    pub const fn rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self { r, g, b, a }
     }
 }
@@ -433,37 +430,110 @@ impl From<LineJoin> for femtovg::LineJoin {
     }
 }
 
-#[derive(Default, Copy, Clone)]
-pub enum BlendMode {
-    #[default]
-    SourceOver,
-    SourceIn,
-    SourceOut,
-    SourceAtop,
-    DestinationOver,
-    DestinationIn,
-    DestinationOut,
-    DestinationAtop,
-    Lighter,
-    Copy,
-    Xor,
+#[derive(Copy, Clone)]
+pub enum BlendFactor {
+    Zero,
+    One,
+    SrcColor,
+    OneMinusSrcColor,
+    DstColor,
+    OneMinusDstColor,
+    SrcAlpha,
+    OneMinusSrcAlpha,
+    DstAlpha,
+    OneMinusDstAlpha,
+    SrcAlphaSaturate,
 }
 
-impl From<BlendMode> for femtovg::CompositeOperation {
-    fn from(value: BlendMode) -> Self {
+impl From<BlendFactor> for femtovg::BlendFactor {
+    fn from(value: BlendFactor) -> Self {
         match value {
-            BlendMode::SourceOver => femtovg::CompositeOperation::SourceOver,
-            BlendMode::SourceIn => femtovg::CompositeOperation::SourceIn,
-            BlendMode::SourceOut => femtovg::CompositeOperation::SourceOut,
-            BlendMode::SourceAtop => femtovg::CompositeOperation::Atop,
-            BlendMode::DestinationOver => femtovg::CompositeOperation::DestinationOver,
-            BlendMode::DestinationIn => femtovg::CompositeOperation::DestinationIn,
-            BlendMode::DestinationOut => femtovg::CompositeOperation::DestinationOut,
-            BlendMode::DestinationAtop => femtovg::CompositeOperation::DestinationAtop,
-            BlendMode::Lighter => femtovg::CompositeOperation::Lighter,
-            BlendMode::Copy => femtovg::CompositeOperation::Copy,
-            BlendMode::Xor => femtovg::CompositeOperation::Xor,
+            BlendFactor::Zero => femtovg::BlendFactor::Zero,
+            BlendFactor::One => femtovg::BlendFactor::One,
+            BlendFactor::SrcColor => femtovg::BlendFactor::SrcColor,
+            BlendFactor::OneMinusSrcColor => femtovg::BlendFactor::OneMinusSrcColor,
+            BlendFactor::DstColor => femtovg::BlendFactor::DstColor,
+            BlendFactor::OneMinusDstColor => femtovg::BlendFactor::OneMinusDstColor,
+            BlendFactor::SrcAlpha => femtovg::BlendFactor::SrcAlpha,
+            BlendFactor::OneMinusSrcAlpha => femtovg::BlendFactor::OneMinusSrcAlpha,
+            BlendFactor::DstAlpha => femtovg::BlendFactor::DstAlpha,
+            BlendFactor::OneMinusDstAlpha => femtovg::BlendFactor::OneMinusDstAlpha,
+            BlendFactor::SrcAlphaSaturate => femtovg::BlendFactor::SrcAlphaSaturate,
         }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct BlendMode {
+    pub sfactor: BlendFactor,
+    pub dfactor: BlendFactor,
+}
+
+impl BlendMode {
+    pub const CLEAR: Self = Self {
+        sfactor: BlendFactor::Zero,
+        dfactor: BlendFactor::Zero,
+    };
+
+    pub const SRC: Self = Self {
+        sfactor: BlendFactor::One,
+        dfactor: BlendFactor::Zero,
+    };
+
+    pub const SRC_OVER: Self = Self {
+        sfactor: BlendFactor::One,
+        dfactor: BlendFactor::OneMinusSrcAlpha,
+    };
+
+    pub const DST_OVER: Self = Self {
+        sfactor: BlendFactor::OneMinusDstAlpha,
+        dfactor: BlendFactor::One,
+    };
+
+    pub const SRC_IN: Self = Self {
+        sfactor: BlendFactor::DstAlpha,
+        dfactor: BlendFactor::Zero,
+    };
+
+    pub const DST_IN: Self = Self {
+        sfactor: BlendFactor::Zero,
+        dfactor: BlendFactor::SrcAlpha,
+    };
+
+    pub const SRC_OUT: Self = Self {
+        sfactor: BlendFactor::OneMinusDstAlpha,
+        dfactor: BlendFactor::Zero,
+    };
+
+    pub const DST_OUT: Self = Self {
+        sfactor: BlendFactor::Zero,
+        dfactor: BlendFactor::OneMinusSrcAlpha,
+    };
+
+    pub const DST: Self = Self {
+        sfactor: BlendFactor::Zero,
+        dfactor: BlendFactor::One,
+    };
+
+    pub const SRC_ATOP: Self = Self {
+        sfactor: BlendFactor::DstAlpha,
+        dfactor: BlendFactor::OneMinusSrcAlpha,
+    };
+
+    pub const DST_ATOP: Self = Self {
+        sfactor: BlendFactor::OneMinusDstAlpha,
+        dfactor: BlendFactor::SrcAlpha,
+    };
+
+    pub const ALPHA_XOR: Self = Self {
+        sfactor: BlendFactor::OneMinusDstAlpha,
+        dfactor: BlendFactor::OneMinusSrcAlpha,
+    };
+}
+
+impl Default for BlendMode {
+    fn default() -> Self {
+        Self::SRC_OVER
     }
 }
 
