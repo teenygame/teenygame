@@ -9,6 +9,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use crate::marker::{MaybeSend, MaybeSync};
+
 pub struct Asset<T>(Arc<Mutex<AssetState<T>>>);
 
 impl<T> Clone for Asset<T> {
@@ -17,20 +19,11 @@ impl<T> Clone for Asset<T> {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 pub trait Loadable
 where
-    Self: Sized + 'static,
+    Self: Sized + MaybeSend + MaybeSync + 'static,
 {
-    fn load(path: &str) -> impl Future<Output = Result<Self, anyhow::Error>>;
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub trait Loadable
-where
-    Self: Sized + Send + Sync + 'static,
-{
-    fn load(path: &str) -> impl Future<Output = Result<Self, anyhow::Error>> + Send;
+    fn load(path: &str) -> impl Future<Output = Result<Self, anyhow::Error>> + MaybeSend;
 }
 
 pub fn load<T>(path: &str) -> Asset<T>
