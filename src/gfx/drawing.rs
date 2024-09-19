@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use femtovg::{renderer::OpenGl, ImageFlags, ImageId, Paint, PixelFormat, Transform2D};
+use femtovg::{renderer::OpenGl, ImageFlags, ImageId, PixelFormat, Transform2D};
 
 pub struct AffineTransform([f32; 6]);
 
@@ -288,12 +288,12 @@ impl Canvas {
     }
 
     #[inline]
-    pub fn draw_image<D>(&mut self, d: &D, x: f32, y: f32)
+    pub fn draw_image<D>(&mut self, d: &D, x: f32, y: f32, blend_mode: BlendMode)
     where
         D: Image,
     {
         let (iw, ih) = d.size(self);
-        self.draw_image_destination_scale(d, x, y, iw as f32, ih as f32);
+        self.draw_image_destination_scale(d, x, y, iw as f32, ih as f32, blend_mode);
     }
 
     #[inline]
@@ -304,12 +304,13 @@ impl Canvas {
         y: f32,
         width: f32,
         height: f32,
+        blend_mode: BlendMode,
     ) where
         D: Image,
     {
         let (iw, ih) = d.size(self);
         self.draw_image_source_clip_destination_scale(
-            d, 0.0, 0.0, iw as f32, ih as f32, x, y, width, height,
+            d, 0.0, 0.0, iw as f32, ih as f32, x, y, width, height, blend_mode,
         );
     }
 
@@ -324,9 +325,11 @@ impl Canvas {
         y: f32,
         width: f32,
         height: f32,
+        blend_mode: BlendMode,
     ) where
         D: Image,
     {
+        self.inner.global_composite_operation(blend_mode.into());
         let (iw, ih) = d.size(self);
         let id = d.get_image_id(self);
         self.inner.fill_path(
@@ -342,20 +345,30 @@ impl Canvas {
             )
             .with_anti_alias(false),
         );
+        self.inner
+            .global_composite_operation(femtovg::CompositeOperation::SourceOver);
     }
 
     pub fn clear_rect(&mut self, x: u32, y: u32, width: u32, height: u32, color: Color) {
         self.inner.clear_rect(x, y, width, height, color.into());
     }
 
-    pub fn fill_path(&mut self, path: &Path, fill: &Fill) {
-        self.inner.fill_path(&path.0, &fill.to_paint());
+    pub fn fill_path(&mut self, path: &Path, paint: &Paint) {
+        self.inner
+            .global_composite_operation(paint.blend_mode.into());
+        self.inner.fill_path(&path.0, &paint.to_impl_paint());
+        self.inner
+            .global_composite_operation(femtovg::CompositeOperation::SourceOver);
     }
 
-    pub fn stroke_path(&mut self, path: &Path, stroke: &Stroke, fill: &Fill) {
-        let mut paint = fill.to_paint();
-        stroke.apply_to_paint(&mut paint);
-        self.inner.stroke_path(&path.0, &fill.to_paint());
+    pub fn stroke_path(&mut self, path: &Path, stroke: &Stroke, paint: &Paint) {
+        self.inner
+            .global_composite_operation(paint.blend_mode.into());
+        let mut impl_paint = paint.to_impl_paint();
+        stroke.apply_to_paint(&mut impl_paint);
+        self.inner.stroke_path(&path.0, &impl_paint);
+        self.inner
+            .global_composite_operation(femtovg::CompositeOperation::SourceOver);
     }
 }
 
@@ -420,7 +433,41 @@ impl From<LineJoin> for femtovg::LineJoin {
     }
 }
 
-enum FillKind {
+#[derive(Default, Copy, Clone)]
+pub enum BlendMode {
+    #[default]
+    SourceOver,
+    SourceIn,
+    SourceOut,
+    SourceAtop,
+    DestinationOver,
+    DestinationIn,
+    DestinationOut,
+    DestinationAtop,
+    Lighter,
+    Copy,
+    Xor,
+}
+
+impl From<BlendMode> for femtovg::CompositeOperation {
+    fn from(value: BlendMode) -> Self {
+        match value {
+            BlendMode::SourceOver => femtovg::CompositeOperation::SourceOver,
+            BlendMode::SourceIn => femtovg::CompositeOperation::SourceIn,
+            BlendMode::SourceOut => femtovg::CompositeOperation::SourceOut,
+            BlendMode::SourceAtop => femtovg::CompositeOperation::Atop,
+            BlendMode::DestinationOver => femtovg::CompositeOperation::DestinationOver,
+            BlendMode::DestinationIn => femtovg::CompositeOperation::DestinationIn,
+            BlendMode::DestinationOut => femtovg::CompositeOperation::DestinationOut,
+            BlendMode::DestinationAtop => femtovg::CompositeOperation::DestinationAtop,
+            BlendMode::Lighter => femtovg::CompositeOperation::Lighter,
+            BlendMode::Copy => femtovg::CompositeOperation::Copy,
+            BlendMode::Xor => femtovg::CompositeOperation::Xor,
+        }
+    }
+}
+
+enum PaintKind {
     Color(Color),
     LinearGradient {
         start_x: f32,
@@ -438,17 +485,23 @@ enum FillKind {
     },
 }
 
-pub struct Fill {
-    kind: FillKind,
+pub struct Paint {
+    kind: PaintKind,
+    pub blend_mode: BlendMode,
     pub anti_alias: bool,
 }
 
-impl Fill {
-    pub fn color(color: Color) -> Self {
+impl Paint {
+    fn new(kind: PaintKind) -> Self {
         Self {
-            kind: FillKind::Color(color),
+            kind,
             anti_alias: true,
+            blend_mode: Default::default(),
         }
+    }
+
+    pub fn color(color: Color) -> Self {
+        Self::new(PaintKind::Color(color))
     }
 
     pub fn linear_gradient(
@@ -458,16 +511,13 @@ impl Fill {
         end_y: f32,
         stops: Vec<(f32, Color)>,
     ) -> Self {
-        Self {
-            kind: FillKind::LinearGradient {
-                start_x,
-                start_y,
-                end_x,
-                end_y,
-                stops,
-            },
-            anti_alias: true,
-        }
+        Self::new(PaintKind::LinearGradient {
+            start_x,
+            start_y,
+            end_x,
+            end_y,
+            stops,
+        })
     }
 
     pub fn radial_gradient(
@@ -477,41 +527,38 @@ impl Fill {
         out_radius: f32,
         stops: Vec<(f32, Color)>,
     ) -> Self {
-        Self {
-            kind: FillKind::RadialGradient {
-                cx,
-                cy,
-                in_radius,
-                out_radius,
-                stops,
-            },
-            anti_alias: true,
-        }
+        Self::new(PaintKind::RadialGradient {
+            cx,
+            cy,
+            in_radius,
+            out_radius,
+            stops,
+        })
     }
 
-    fn to_paint(&self) -> femtovg::Paint {
+    fn to_impl_paint(&self) -> femtovg::Paint {
         let mut paint = match &self.kind {
-            FillKind::Color(c) => Paint::color((*c).into()),
-            FillKind::LinearGradient {
+            PaintKind::Color(c) => femtovg::Paint::color((*c).into()),
+            PaintKind::LinearGradient {
                 start_x,
                 start_y,
                 end_x,
                 end_y,
                 stops,
-            } => Paint::linear_gradient_stops(
+            } => femtovg::Paint::linear_gradient_stops(
                 *start_x,
                 *start_y,
                 *end_x,
                 *end_y,
                 stops.iter().map(|(t, c)| (*t, (*c).into())),
             ),
-            FillKind::RadialGradient {
+            PaintKind::RadialGradient {
                 cx,
                 cy,
                 in_radius,
                 out_radius,
                 stops,
-            } => Paint::radial_gradient_stops(
+            } => femtovg::Paint::radial_gradient_stops(
                 *cx,
                 *cy,
                 *in_radius,

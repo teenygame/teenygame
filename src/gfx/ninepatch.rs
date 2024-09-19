@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::asset::Image;
 
-use super::drawing::AffineTransform;
+use super::drawing::{AffineTransform, BlendMode};
 
 pub struct NinePatch<'a> {
     img: &'a Arc<Image>,
@@ -31,7 +31,15 @@ impl<'a> NinePatch<'a> {
 }
 
 impl<'a> NinePatch<'a> {
-    pub fn draw(&self, canvas: &mut super::Canvas, x: u32, y: u32, width: u32, height: u32) {
+    pub fn draw(
+        &self,
+        canvas: &mut super::Canvas,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+        blend_mode: BlendMode,
+    ) {
         let (src_width, src_height) = self.img.size();
 
         canvas.transform(&AffineTransform::translation(x as f32, y as f32));
@@ -47,6 +55,7 @@ impl<'a> NinePatch<'a> {
             0.0,
             self.left_margin as f32,
             self.top_margin as f32,
+            blend_mode,
         );
 
         // Top right
@@ -60,6 +69,7 @@ impl<'a> NinePatch<'a> {
             0.0,
             self.right_margin as f32,
             self.top_margin as f32,
+            blend_mode,
         );
 
         // Bottom left
@@ -73,6 +83,7 @@ impl<'a> NinePatch<'a> {
             (height - self.bottom_margin) as f32,
             self.left_margin as f32,
             self.bottom_margin as f32,
+            blend_mode,
         );
 
         // Bottom right
@@ -86,6 +97,7 @@ impl<'a> NinePatch<'a> {
             (height - self.bottom_margin) as f32,
             self.left_margin as f32,
             self.right_margin as f32,
+            blend_mode,
         );
 
         // Top edge
@@ -99,6 +111,7 @@ impl<'a> NinePatch<'a> {
             0.0,
             (width - self.left_margin - self.right_margin) as f32,
             self.top_margin as f32,
+            blend_mode,
         );
 
         // Bottom edge
@@ -112,6 +125,7 @@ impl<'a> NinePatch<'a> {
             (height - self.bottom_margin) as f32,
             (width - self.left_margin - self.right_margin) as f32,
             self.bottom_margin as f32,
+            blend_mode,
         );
 
         // Left edge
@@ -125,6 +139,7 @@ impl<'a> NinePatch<'a> {
             self.top_margin as f32,
             self.left_margin as f32,
             (height - self.top_margin - self.bottom_margin) as f32,
+            blend_mode,
         );
 
         // Right edge
@@ -138,6 +153,7 @@ impl<'a> NinePatch<'a> {
             self.top_margin as f32,
             self.left_margin as f32,
             (height - self.top_margin - self.bottom_margin) as f32,
+            blend_mode,
         );
 
         // Center
@@ -151,6 +167,7 @@ impl<'a> NinePatch<'a> {
             self.top_margin as f32,
             (width - self.left_margin - self.right_margin) as f32,
             (height - self.top_margin - self.bottom_margin) as f32,
+            blend_mode,
         );
     }
 }
