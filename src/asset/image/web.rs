@@ -18,12 +18,6 @@ impl Image {
     }
 }
 
-#[cfg(feature = "wasm-unsafe-send-sync")]
-unsafe impl Send for Image {}
-
-#[cfg(feature = "wasm-unsafe-send-sync")]
-unsafe impl Sync for Image {}
-
 #[derive(thiserror::Error, Debug)]
 #[error("{0}")]
 pub struct WasmError(String);
@@ -74,7 +68,7 @@ impl Loadable for Image {
 
 impl<M> Loadable for ImageAndMetadata<M>
 where
-    M: Metadata + Sync + 'static,
+    M: Metadata + 'static,
 {
     async fn load(path: &str) -> Result<Self, anyhow::Error> {
         let data = Request::get(&path).send().await?.binary().await?;

@@ -20,7 +20,7 @@ impl<T> Clone for Asset<T> {
 #[cfg(target_arch = "wasm32")]
 pub trait Loadable
 where
-    Self: Sized + Sync + 'static,
+    Self: Sized + 'static,
 {
     fn load(path: &str) -> impl Future<Output = Result<Self, anyhow::Error>>;
 }
