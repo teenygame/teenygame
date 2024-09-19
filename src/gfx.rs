@@ -1,9 +1,10 @@
 pub mod drawing;
 pub mod ninepatch;
 
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 pub use drawing::Canvas;
+use drawing::Framebuffer;
 use winit::{
     dpi::{LogicalSize, PhysicalSize},
     window::Window,
@@ -21,6 +22,20 @@ pub(crate) struct GraphicsState {
 struct Gl {
     context: glutin::context::PossiblyCurrentContext,
     surface: glutin::surface::Surface<glutin::surface::WindowSurface>,
+}
+
+pub struct GraphicsContext<'a> {
+    canvas: &'a mut drawing::Canvas,
+}
+
+impl<'a> GraphicsContext<'a> {
+    pub(crate) fn new(canvas: &'a mut drawing::Canvas) -> Self {
+        Self { canvas }
+    }
+
+    pub fn create_framebuffer(&mut self, width: u32, height: u32) -> Arc<Framebuffer> {
+        self.canvas.create_framebuffer(width, height)
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]

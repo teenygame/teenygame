@@ -262,7 +262,7 @@ impl Canvas {
         });
     }
 
-    pub fn create_framebuffer(&mut self, width: u32, height: u32) -> Arc<Framebuffer> {
+    pub(crate) fn create_framebuffer(&mut self, width: u32, height: u32) -> Arc<Framebuffer> {
         let flags = ImageFlags::FLIP_Y | ImageFlags::NEAREST;
         let id = self
             .inner

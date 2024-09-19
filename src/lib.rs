@@ -8,7 +8,7 @@ pub mod time;
 
 #[cfg(feature = "audio")]
 use audio::AudioContext;
-use gfx::{Canvas, GraphicsState};
+use gfx::{Canvas, GraphicsContext, GraphicsState};
 use input::InputState;
 use std::time::Duration;
 use time::Instant;
@@ -121,7 +121,7 @@ where
                         input: &self.input_state,
                         #[cfg(feature = "audio")]
                         audio: &self.audio,
-                        canvas: &mut gfx.canvas,
+                        gfx: GraphicsContext::new(&mut gfx.canvas),
                     });
                     self.input_state.update();
                     self.draw_time_accumulator -= G::TICK_TIME;
@@ -177,7 +177,7 @@ where
                     input: &self.input_state,
                     #[cfg(feature = "audio")]
                     audio: &self.audio,
-                    canvas: &mut gfx.canvas,
+                    gfx: GraphicsContext::new(&mut gfx.canvas),
                 }));
 
                 self.gfx = Some(gfx);
@@ -188,9 +188,9 @@ where
 
 pub struct Context<'a> {
     pub input: &'a InputState,
-    pub canvas: &'a mut Canvas,
     #[cfg(feature = "audio")]
     pub audio: &'a AudioContext,
+    pub gfx: GraphicsContext<'a>,
 }
 
 pub trait Game {
