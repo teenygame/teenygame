@@ -288,16 +288,38 @@ impl Canvas {
     }
 
     #[inline]
-    pub fn draw_image<D>(&mut self, d: &D, x: f32, y: f32, blend_mode: BlendMode)
+    pub fn draw_image<D>(&mut self, d: &D, x: f32, y: f32)
+    where
+        D: Image,
+    {
+        self.draw_image_blend(d, x, y, Default::default());
+    }
+
+    #[inline]
+    pub fn draw_image_blend<D>(&mut self, d: &D, x: f32, y: f32, blend_mode: BlendMode)
     where
         D: Image,
     {
         let (iw, ih) = d.size(self);
-        self.draw_image_destination_scale(d, x, y, iw as f32, ih as f32, blend_mode);
+        self.draw_image_destination_scale_blend(d, x, y, iw as f32, ih as f32, blend_mode);
     }
 
     #[inline]
     pub fn draw_image_destination_scale<D>(
+        &mut self,
+        d: &D,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+    ) where
+        D: Image,
+    {
+        self.draw_image_destination_scale_blend(d, x, y, width, height, Default::default());
+    }
+
+    #[inline]
+    pub fn draw_image_destination_scale_blend<D>(
         &mut self,
         d: &D,
         x: f32,
@@ -309,12 +331,41 @@ impl Canvas {
         D: Image,
     {
         let (iw, ih) = d.size(self);
-        self.draw_image_source_clip_destination_scale(
+        self.draw_image_source_clip_destination_scale_blend(
             d, 0.0, 0.0, iw as f32, ih as f32, x, y, width, height, blend_mode,
         );
     }
 
+    #[inline]
     pub fn draw_image_source_clip_destination_scale<D>(
+        &mut self,
+        d: &D,
+        sx: f32,
+        sy: f32,
+        s_width: f32,
+        s_height: f32,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+    ) where
+        D: Image,
+    {
+        self.draw_image_source_clip_destination_scale_blend(
+            d,
+            sx,
+            sy,
+            s_width,
+            s_height,
+            x,
+            y,
+            width,
+            height,
+            Default::default(),
+        );
+    }
+
+    pub fn draw_image_source_clip_destination_scale_blend<D>(
         &mut self,
         d: &D,
         sx: f32,

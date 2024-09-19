@@ -31,7 +31,11 @@ impl<'a> NinePatch<'a> {
 }
 
 impl<'a> NinePatch<'a> {
-    pub fn draw(
+    pub fn draw(&self, canvas: &mut super::Canvas, x: u32, y: u32, width: u32, height: u32) {
+        self.draw_blend(canvas, x, y, width, height, Default::default());
+    }
+
+    pub fn draw_blend(
         &self,
         canvas: &mut super::Canvas,
         x: u32,
@@ -45,7 +49,7 @@ impl<'a> NinePatch<'a> {
         canvas.transform(&AffineTransform::translation(x as f32, y as f32));
 
         // Top left
-        canvas.draw_image_source_clip_destination_scale(
+        canvas.draw_image_source_clip_destination_scale_blend(
             self.img,
             0.0,
             0.0,
@@ -59,7 +63,7 @@ impl<'a> NinePatch<'a> {
         );
 
         // Top right
-        canvas.draw_image_source_clip_destination_scale(
+        canvas.draw_image_source_clip_destination_scale_blend(
             self.img,
             (src_width - self.right_margin) as f32,
             0.0,
@@ -73,7 +77,7 @@ impl<'a> NinePatch<'a> {
         );
 
         // Bottom left
-        canvas.draw_image_source_clip_destination_scale(
+        canvas.draw_image_source_clip_destination_scale_blend(
             self.img,
             0.0,
             (src_height - self.bottom_margin) as f32,
@@ -87,7 +91,7 @@ impl<'a> NinePatch<'a> {
         );
 
         // Bottom right
-        canvas.draw_image_source_clip_destination_scale(
+        canvas.draw_image_source_clip_destination_scale_blend(
             self.img,
             (src_width - self.right_margin) as f32,
             (src_height - self.bottom_margin) as f32,
@@ -101,7 +105,7 @@ impl<'a> NinePatch<'a> {
         );
 
         // Top edge
-        canvas.draw_image_source_clip_destination_scale(
+        canvas.draw_image_source_clip_destination_scale_blend(
             self.img,
             self.left_margin as f32,
             0.0,
@@ -115,7 +119,7 @@ impl<'a> NinePatch<'a> {
         );
 
         // Bottom edge
-        canvas.draw_image_source_clip_destination_scale(
+        canvas.draw_image_source_clip_destination_scale_blend(
             self.img,
             self.left_margin as f32,
             (src_height - self.bottom_margin) as f32,
@@ -129,7 +133,7 @@ impl<'a> NinePatch<'a> {
         );
 
         // Left edge
-        canvas.draw_image_source_clip_destination_scale(
+        canvas.draw_image_source_clip_destination_scale_blend(
             self.img,
             0.0,
             self.top_margin as f32,
@@ -143,7 +147,7 @@ impl<'a> NinePatch<'a> {
         );
 
         // Right edge
-        canvas.draw_image_source_clip_destination_scale(
+        canvas.draw_image_source_clip_destination_scale_blend(
             self.img,
             (src_width - self.right_margin) as f32,
             self.top_margin as f32,
@@ -157,7 +161,7 @@ impl<'a> NinePatch<'a> {
         );
 
         // Center
-        canvas.draw_image_source_clip_destination_scale(
+        canvas.draw_image_source_clip_destination_scale_blend(
             self.img,
             self.left_margin as f32,
             self.top_margin as f32,
