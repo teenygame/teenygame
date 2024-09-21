@@ -5,7 +5,11 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use femtovg::{renderer::OpenGl, ImageFlags, ImageId, PixelFormat, Transform2D};
+use bytemuck::checked::cast_slice;
+use femtovg::{
+    imgref::Img, renderer::OpenGl, rgb::Rgba, ImageFlags, ImageId, PixelFormat, Transform2D,
+};
+use image::Rgba;
 
 pub struct AffineTransform([f32; 6]);
 
@@ -96,9 +100,9 @@ impl Image for Arc<crate::asset::Image> {
     }
 }
 
-pub struct Framebuffer(ImageId);
+pub struct Texture(ImageId);
 
-impl Image for Arc<Framebuffer> {
+impl Image for Arc<Texture> {
     fn get_image_id(&self, _canvas: &mut Canvas) -> femtovg::ImageId {
         self.0
     }
@@ -106,6 +110,25 @@ impl Image for Arc<Framebuffer> {
     fn size(&self, canvas: &mut Canvas) -> (u32, u32) {
         let size = canvas.inner.image_info(self.0).unwrap().size();
         (size.width as u32, size.height as u32)
+    }
+}
+
+impl Texture {
+    fn update_rgba(
+        &self,
+        canvas: &mut Canvas,
+        src: &[u8],
+        x: usize,
+        y: usize,
+        width: usize,
+        height: usize,
+    ) {
+        canvas.inner.update_image(
+            self.0,
+            Img::new(cast_slice::<_, Rgba<u8>>(src), width, height),
+            x,
+            y,
+        );
     }
 }
 
@@ -158,11 +181,11 @@ impl<'a> DerefMut for CanvasTransformGuard<'a> {
 
 pub struct CanvasFramebufferGuard<'a> {
     canvas: &'a mut Canvas,
-    prev_fb: Option<Arc<Framebuffer>>,
+    prev_fb: Option<Arc<Texture>>,
 }
 
 impl<'a> CanvasFramebufferGuard<'a> {
-    fn new(canvas: &'a mut Canvas, fb: Arc<Framebuffer>) -> Self {
+    fn new(canvas: &'a mut Canvas, fb: Arc<Texture>) -> Self {
         let prev_fb = canvas.framebuffer.take();
         canvas
             .inner
@@ -203,7 +226,7 @@ impl<'a> DerefMut for CanvasFramebufferGuard<'a> {
 pub struct Canvas {
     inner: femtovg::Canvas<OpenGl>,
     size: (u32, u32),
-    framebuffer: Option<Arc<Framebuffer>>,
+    framebuffer: Option<Arc<Texture>>,
     image_id_cache: HashMap<(*const c_void, ImageFlags), CachedImageId>,
 }
 
@@ -262,13 +285,16 @@ impl Canvas {
         });
     }
 
-    pub(crate) fn create_framebuffer(&mut self, width: u32, height: u32) -> Arc<Framebuffer> {
-        let flags = ImageFlags::FLIP_Y | ImageFlags::NEAREST;
+    pub(crate) fn create_texture(&mut self, width: u32, height: u32, flip_y: bool) -> Arc<Texture> {
+        let mut flags = ImageFlags::NEAREST;
+        if flip_y {
+            flags |= ImageFlags::FLIP_Y;
+        }
         let id = self
             .inner
             .create_image_empty(width as usize, height as usize, PixelFormat::Rgba8, flags)
             .unwrap();
-        let fb = Arc::new(Framebuffer(id));
+        let fb = Arc::new(Texture(id));
         self.image_id_cache.insert(
             (fb.as_ref() as *const _ as *const c_void, flags),
             CachedImageId {
@@ -279,7 +305,7 @@ impl Canvas {
         fb
     }
 
-    pub fn use_framebuffer(&mut self, fb: Arc<Framebuffer>) -> CanvasFramebufferGuard {
+    pub fn use_framebuffer(&mut self, fb: Arc<Texture>) -> CanvasFramebufferGuard {
         CanvasFramebufferGuard::new(self, fb)
     }
 

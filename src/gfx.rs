@@ -4,7 +4,7 @@ pub mod ninepatch;
 use std::{rc::Rc, sync::Arc};
 
 pub use drawing::Canvas;
-use drawing::Framebuffer;
+use drawing::Texture;
 use winit::{
     dpi::{LogicalSize, PhysicalSize},
     window::Window,
@@ -33,8 +33,12 @@ impl<'a> GraphicsContext<'a> {
         Self { canvas }
     }
 
-    pub fn create_framebuffer(&mut self, width: u32, height: u32) -> Arc<Framebuffer> {
-        self.canvas.create_framebuffer(width, height)
+    pub fn create_framebuffer(&mut self, width: u32, height: u32) -> Arc<Texture> {
+        self.create_texture(width, height, true)
+    }
+
+    pub fn create_texture(&mut self, width: u32, height: u32, flip_y: bool) -> Arc<Texture> {
+        self.canvas.create_texture(width, height, flip_y)
     }
 }
 
