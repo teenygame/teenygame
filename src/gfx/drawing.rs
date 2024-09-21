@@ -145,6 +145,22 @@ impl Image for Arc<Texture> {
     }
 }
 
+pub struct ImageData<'a> {
+    buf: &'a [Rgba<u8>],
+    width: usize,
+    height: usize,
+}
+
+impl<'a> ImageData<'a> {
+    pub fn new(buf: &'a [u8], width: usize, height: usize) -> Self {
+        Self {
+            buf: cast_slice(buf),
+            width,
+            height,
+        }
+    }
+}
+
 impl Texture {
     fn new(width: usize, height: usize, flip_y: bool) -> Arc<Self> {
         Arc::new(Self {
@@ -164,11 +180,10 @@ impl Texture {
         Self::new(width, height, true)
     }
 
-    pub fn update_rgba(&self, src: &[u8], x: usize, y: usize, width: usize, height: usize) {
-        *self.pending_update.lock().unwrap() = Some((
-            ImgVec::new(cast_slice::<_, Rgba<u8>>(src).to_vec(), width, height),
-            (x, y),
-        ));
+    pub fn update_rgba(&self, src: ImageData, x: usize, y: usize) {
+        // TODO: Check bounds.
+        *self.pending_update.lock().unwrap() =
+            Some((ImgVec::new(src.buf.to_vec(), src.width, src.height), (x, y)));
     }
 }
 
