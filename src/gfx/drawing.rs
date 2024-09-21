@@ -162,7 +162,7 @@ impl Texture {
         Self::new(width, height, true)
     }
 
-    pub fn update_rgba(&mut self, src: &[u8], x: usize, y: usize, width: usize, height: usize) {
+    pub fn update_rgba(&self, src: &[u8], x: usize, y: usize, width: usize, height: usize) {
         *self.pending_update.borrow_mut() = Some((
             ImgVec::new(cast_slice::<_, Rgba<u8>>(src).to_vec(), width, height),
             (x, y),
