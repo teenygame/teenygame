@@ -9,7 +9,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::marker::{MaybeSend, MaybeSync};
+use crate::{
+    futures,
+    marker::{MaybeSend, MaybeSync},
+};
 
 pub struct Asset<T>(Arc<Mutex<AssetState<T>>>);
 
@@ -43,11 +46,7 @@ where
             *r.0.lock().unwrap() = Some(res);
         };
 
-        #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
-        tokio::task::spawn(fut);
-
-        #[cfg(target_arch = "wasm32")]
-        wasm_bindgen_futures::spawn_local(fut);
+        futures::spawn(fut);
     }
     r
 }

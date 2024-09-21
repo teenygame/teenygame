@@ -1,6 +1,7 @@
 pub mod asset;
 #[cfg(feature = "audio")]
 pub mod audio;
+mod futures;
 pub mod gfx;
 pub mod input;
 mod marker;
