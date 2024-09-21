@@ -9,7 +9,7 @@ pub mod time;
 
 #[cfg(feature = "audio")]
 use audio::AudioContext;
-use gfx::{Canvas, GraphicsContext, GraphicsState};
+use gfx::{Canvas, GraphicsState};
 use input::InputState;
 use std::time::Duration;
 use time::Instant;
@@ -122,7 +122,6 @@ where
                         input: &self.input_state,
                         #[cfg(feature = "audio")]
                         audio: &self.audio,
-                        gfx: GraphicsContext::new(&mut gfx.canvas),
                     });
                     self.input_state.update();
                     self.draw_time_accumulator -= G::TICK_TIME;
@@ -170,7 +169,7 @@ where
 
     fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, event: UserEvent) {
         match event {
-            UserEvent::GraphicsState(mut gfx) => {
+            UserEvent::GraphicsState(gfx) => {
                 #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
                 let _guard = self.tokio_rt.enter();
 
@@ -178,7 +177,6 @@ where
                     input: &self.input_state,
                     #[cfg(feature = "audio")]
                     audio: &self.audio,
-                    gfx: GraphicsContext::new(&mut gfx.canvas),
                 }));
 
                 self.gfx = Some(gfx);
@@ -191,7 +189,6 @@ pub struct Context<'a> {
     pub input: &'a InputState,
     #[cfg(feature = "audio")]
     pub audio: &'a AudioContext,
-    pub gfx: GraphicsContext<'a>,
 }
 
 pub trait Game {

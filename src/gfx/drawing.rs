@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     collections::HashMap,
     ffi::c_void,
     ops::{Deref, DerefMut, Mul, MulAssign},
@@ -7,7 +8,7 @@ use std::{
 
 use bytemuck::checked::cast_slice;
 use femtovg::{
-    imgref::Img, renderer::OpenGl, rgb::Rgba, ImageFlags, ImageId, PixelFormat, Transform2D,
+    imgref::ImgVec, renderer::OpenGl, rgb::Rgba, ImageFlags, ImageId, PixelFormat, Transform2D,
 };
 
 pub struct AffineTransform([f32; 6]);
@@ -86,7 +87,7 @@ impl Mul<AffineTransform> for AffineTransform {
 
 pub trait Image {
     fn get_image_id(&self, canvas: &mut Canvas) -> femtovg::ImageId;
-    fn size(&self, canvas: &mut Canvas) -> (u32, u32);
+    fn size(&self) -> (u32, u32);
 }
 
 impl Image for Arc<crate::asset::Image> {
@@ -94,43 +95,78 @@ impl Image for Arc<crate::asset::Image> {
         canvas.get_or_create_image(self.clone(), ImageFlags::NEAREST)
     }
 
-    fn size(&self, _canvas: &mut Canvas) -> (u32, u32) {
+    fn size(&self) -> (u32, u32) {
         self.as_ref().size()
     }
 }
 
-pub struct Texture(ImageId);
+pub struct Texture {
+    id: RefCell<Option<ImageId>>,
+    width: usize,
+    height: usize,
+    flip_y: bool,
+
+    pending_update: RefCell<Option<(ImgVec<Rgba<u8>>, (usize, usize))>>,
+}
 
 impl Image for Arc<Texture> {
-    fn get_image_id(&self, _canvas: &mut Canvas) -> femtovg::ImageId {
-        self.0
+    fn get_image_id(&self, canvas: &mut Canvas) -> femtovg::ImageId {
+        let id = *self.id.borrow_mut().get_or_insert_with(|| {
+            let mut flags = ImageFlags::NEAREST;
+            if self.flip_y {
+                flags |= ImageFlags::FLIP_Y;
+            }
+
+            let id = canvas
+                .inner
+                .create_image_empty(
+                    self.width as usize,
+                    self.height as usize,
+                    PixelFormat::Rgba8,
+                    flags,
+                )
+                .unwrap();
+            canvas.image_id_cache.insert(
+                (self.as_ref() as *const _ as *const c_void, flags),
+                CachedImageId {
+                    weak: Box::new(Arc::downgrade(self)),
+                    id,
+                },
+            );
+            id
+        });
+
+        if let Some((src, (x, y))) = self.pending_update.take() {
+            canvas.inner.update_image(id, src.as_ref(), x, y).unwrap();
+        }
+        id
     }
 
-    fn size(&self, canvas: &mut Canvas) -> (u32, u32) {
-        let size = canvas.inner.image_info(self.0).unwrap().size();
-        (size.width as u32, size.height as u32)
+    fn size(&self) -> (u32, u32) {
+        (self.width as u32, self.height as u32)
     }
 }
 
 impl Texture {
-    pub fn update_rgba(
-        &self,
-        canvas: &mut Canvas,
-        src: &[u8],
-        x: usize,
-        y: usize,
-        width: usize,
-        height: usize,
-    ) {
-        canvas
-            .inner
-            .update_image(
-                self.0,
-                Img::new(cast_slice::<_, Rgba<u8>>(src), width, height),
-                x,
-                y,
-            )
-            .unwrap();
+    pub fn new(width: usize, height: usize, flip_y: bool) -> Arc<Self> {
+        Arc::new(Self {
+            id: RefCell::new(None),
+            width,
+            height,
+            flip_y,
+            pending_update: RefCell::new(None),
+        })
+    }
+
+    pub fn new_framebuffer(width: usize, height: usize) -> Arc<Self> {
+        Self::new(width, height, true)
+    }
+
+    pub fn update_rgba(&mut self, src: &[u8], x: usize, y: usize, width: usize, height: usize) {
+        *self.pending_update.borrow_mut() = Some((
+            ImgVec::new(cast_slice::<_, Rgba<u8>>(src).to_vec(), width, height),
+            (x, y),
+        ));
     }
 }
 
@@ -189,9 +225,10 @@ pub struct CanvasFramebufferGuard<'a> {
 impl<'a> CanvasFramebufferGuard<'a> {
     fn new(canvas: &'a mut Canvas, fb: Arc<Texture>) -> Self {
         let prev_fb = canvas.framebuffer.take();
+        let id = fb.get_image_id(canvas);
         canvas
             .inner
-            .set_render_target(femtovg::RenderTarget::Image(fb.0));
+            .set_render_target(femtovg::RenderTarget::Image(id));
         canvas.framebuffer = Some(fb);
         Self { canvas, prev_fb }
     }
@@ -202,7 +239,7 @@ impl<'a> Drop for CanvasFramebufferGuard<'a> {
         if let Some(fb) = &self.prev_fb {
             self.canvas
                 .inner
-                .set_render_target(femtovg::RenderTarget::Image(fb.0));
+                .set_render_target(femtovg::RenderTarget::Image(fb.id.borrow().unwrap()));
         } else {
             self.canvas
                 .inner
@@ -287,26 +324,6 @@ impl Canvas {
         });
     }
 
-    pub(crate) fn create_texture(&mut self, width: u32, height: u32, flip_y: bool) -> Arc<Texture> {
-        let mut flags = ImageFlags::NEAREST;
-        if flip_y {
-            flags |= ImageFlags::FLIP_Y;
-        }
-        let id = self
-            .inner
-            .create_image_empty(width as usize, height as usize, PixelFormat::Rgba8, flags)
-            .unwrap();
-        let fb = Arc::new(Texture(id));
-        self.image_id_cache.insert(
-            (fb.as_ref() as *const _ as *const c_void, flags),
-            CachedImageId {
-                weak: Box::new(Arc::downgrade(&fb)),
-                id,
-            },
-        );
-        fb
-    }
-
     pub fn use_framebuffer(&mut self, fb: Arc<Texture>) -> CanvasFramebufferGuard {
         CanvasFramebufferGuard::new(self, fb)
     }
@@ -328,7 +345,7 @@ impl Canvas {
     where
         D: Image,
     {
-        let (iw, ih) = d.size(self);
+        let (iw, ih) = d.size();
         self.draw_image_destination_scale_blend(d, x, y, iw as f32, ih as f32, blend_mode);
     }
 
@@ -358,7 +375,7 @@ impl Canvas {
     ) where
         D: Image,
     {
-        let (iw, ih) = d.size(self);
+        let (iw, ih) = d.size();
         self.draw_image_source_clip_destination_scale_blend(
             d, 0.0, 0.0, iw as f32, ih as f32, x, y, width, height, blend_mode,
         );
@@ -409,7 +426,7 @@ impl Canvas {
         D: Image,
     {
         self.set_blend_mode(blend_mode);
-        let (iw, ih) = d.size(self);
+        let (iw, ih) = d.size();
         let id = d.get_image_id(self);
         self.inner.fill_path(
             &Path::new().rect(x, y, width, height).0,
