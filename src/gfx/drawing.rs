@@ -1,14 +1,12 @@
+use bytemuck::checked::cast_slice;
+use femtovg::{
+    imgref::ImgVec, renderer::OpenGl, rgb::Rgba, ImageFlags, ImageId, PixelFormat, Transform2D,
+};
 use std::{
-    cell::RefCell,
     collections::HashMap,
     ffi::c_void,
     ops::{Deref, DerefMut, Mul, MulAssign},
     sync::{Arc, Mutex, Weak},
-};
-
-use bytemuck::checked::cast_slice;
-use femtovg::{
-    imgref::ImgVec, renderer::OpenGl, rgb::Rgba, ImageFlags, ImageId, PixelFormat, Transform2D,
 };
 
 pub struct AffineTransform([f32; 6]);
@@ -148,7 +146,7 @@ impl Image for Arc<Texture> {
 }
 
 impl Texture {
-    pub fn new(width: usize, height: usize, flip_y: bool) -> Arc<Self> {
+    fn new(width: usize, height: usize, flip_y: bool) -> Arc<Self> {
         Arc::new(Self {
             id: Mutex::new(None),
             width,
@@ -156,6 +154,10 @@ impl Texture {
             flip_y,
             pending_update: Mutex::new(None),
         })
+    }
+
+    pub fn new_empty(width: usize, height: usize) -> Arc<Self> {
+        Self::new(width, height, false)
     }
 
     pub fn new_framebuffer(width: usize, height: usize) -> Arc<Self> {
