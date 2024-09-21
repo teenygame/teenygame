@@ -180,7 +180,7 @@ impl Texture {
         Self::new(width, height, true)
     }
 
-    pub fn update_rgba(&self, src: ImageData, x: usize, y: usize) {
+    pub fn update(&self, src: ImageData, x: usize, y: usize) {
         // TODO: Check bounds.
         *self.pending_update.lock().unwrap() =
             Some((ImgVec::new(src.buf.to_vec(), src.width, src.height), (x, y)));
