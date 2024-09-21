@@ -101,7 +101,7 @@ impl Image for Arc<crate::asset::Image> {
 }
 
 pub struct Texture {
-    id: RefCell<Option<ImageId>>,
+    id: Mutex<Option<ImageId>>,
     width: usize,
     height: usize,
     flip_y: bool,
@@ -111,7 +111,7 @@ pub struct Texture {
 
 impl Image for Arc<Texture> {
     fn get_image_id(&self, canvas: &mut Canvas) -> femtovg::ImageId {
-        let id = *self.id.borrow_mut().get_or_insert_with(|| {
+        let id = *self.id.lock().unwrap().get_or_insert_with(|| {
             let mut flags = ImageFlags::NEAREST;
             if self.flip_y {
                 flags |= ImageFlags::FLIP_Y;
@@ -150,7 +150,7 @@ impl Image for Arc<Texture> {
 impl Texture {
     pub fn new(width: usize, height: usize, flip_y: bool) -> Arc<Self> {
         Arc::new(Self {
-            id: RefCell::new(None),
+            id: Mutex::new(None),
             width,
             height,
             flip_y,
@@ -219,7 +219,7 @@ impl<'a> DerefMut for CanvasTransformGuard<'a> {
 
 pub struct CanvasFramebufferGuard<'a> {
     canvas: &'a mut Canvas,
-    prev_fb: Option<Arc<Texture>>,
+    prev_fb: Option<ImageId>,
 }
 
 impl<'a> CanvasFramebufferGuard<'a> {
@@ -229,7 +229,7 @@ impl<'a> CanvasFramebufferGuard<'a> {
         canvas
             .inner
             .set_render_target(femtovg::RenderTarget::Image(id));
-        canvas.framebuffer = Some(fb);
+        canvas.framebuffer = Some(fb.get_image_id(canvas));
         Self { canvas, prev_fb }
     }
 }
@@ -239,7 +239,7 @@ impl<'a> Drop for CanvasFramebufferGuard<'a> {
         if let Some(fb) = &self.prev_fb {
             self.canvas
                 .inner
-                .set_render_target(femtovg::RenderTarget::Image(fb.id.borrow().unwrap()));
+                .set_render_target(femtovg::RenderTarget::Image(*fb));
         } else {
             self.canvas
                 .inner
@@ -265,7 +265,7 @@ impl<'a> DerefMut for CanvasFramebufferGuard<'a> {
 pub struct Canvas {
     inner: femtovg::Canvas<OpenGl>,
     size: (u32, u32),
-    framebuffer: Option<Arc<Texture>>,
+    framebuffer: Option<ImageId>,
     image_id_cache: HashMap<(*const c_void, ImageFlags), CachedImageId>,
 }
 
