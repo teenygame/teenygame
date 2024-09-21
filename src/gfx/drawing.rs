@@ -3,7 +3,7 @@ use std::{
     collections::HashMap,
     ffi::c_void,
     ops::{Deref, DerefMut, Mul, MulAssign},
-    sync::{Arc, Weak},
+    sync::{Arc, Mutex, Weak},
 };
 
 use bytemuck::checked::cast_slice;
@@ -106,7 +106,7 @@ pub struct Texture {
     height: usize,
     flip_y: bool,
 
-    pending_update: RefCell<Option<(ImgVec<Rgba<u8>>, (usize, usize))>>,
+    pending_update: Mutex<Option<(ImgVec<Rgba<u8>>, (usize, usize))>>,
 }
 
 impl Image for Arc<Texture> {
@@ -136,7 +136,7 @@ impl Image for Arc<Texture> {
             id
         });
 
-        if let Some((src, (x, y))) = self.pending_update.take() {
+        if let Some((src, (x, y))) = self.pending_update.lock().unwrap().take() {
             canvas.inner.update_image(id, src.as_ref(), x, y).unwrap();
         }
         id
@@ -154,7 +154,7 @@ impl Texture {
             width,
             height,
             flip_y,
-            pending_update: RefCell::new(None),
+            pending_update: Mutex::new(None),
         })
     }
 
@@ -163,7 +163,7 @@ impl Texture {
     }
 
     pub fn update_rgba(&self, src: &[u8], x: usize, y: usize, width: usize, height: usize) {
-        *self.pending_update.borrow_mut() = Some((
+        *self.pending_update.lock().unwrap() = Some((
             ImgVec::new(cast_slice::<_, Rgba<u8>>(src).to_vec(), width, height),
             (x, y),
         ));
