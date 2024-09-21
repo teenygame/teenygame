@@ -9,7 +9,6 @@ use bytemuck::checked::cast_slice;
 use femtovg::{
     imgref::Img, renderer::OpenGl, rgb::Rgba, ImageFlags, ImageId, PixelFormat, Transform2D,
 };
-use image::Rgba;
 
 pub struct AffineTransform([f32; 6]);
 
@@ -114,7 +113,7 @@ impl Image for Arc<Texture> {
 }
 
 impl Texture {
-    fn update_rgba(
+    pub fn update_rgba(
         &self,
         canvas: &mut Canvas,
         src: &[u8],
@@ -123,12 +122,15 @@ impl Texture {
         width: usize,
         height: usize,
     ) {
-        canvas.inner.update_image(
-            self.0,
-            Img::new(cast_slice::<_, Rgba<u8>>(src), width, height),
-            x,
-            y,
-        );
+        canvas
+            .inner
+            .update_image(
+                self.0,
+                Img::new(cast_slice::<_, Rgba<u8>>(src), width, height),
+                x,
+                y,
+            )
+            .unwrap();
     }
 }
 
