@@ -4,10 +4,7 @@ pub mod ninepatch;
 use std::rc::Rc;
 
 pub use drawing::Canvas;
-use winit::{
-    dpi::{LogicalSize, PhysicalSize},
-    window::Window,
-};
+use winit::{dpi::PhysicalSize, window::Window};
 
 pub(crate) struct GraphicsState {
     pub window: Rc<Window>,
@@ -100,6 +97,7 @@ impl GraphicsState {
             use glutin::display::GetGlDisplay;
             use glutin::prelude::*;
             use glutin_winit::GlWindow;
+            use winit::dpi::LogicalSize;
 
             let (window, gl_context) = if let Some(mut gfx) = gfx.take() {
                 let gl = gfx.gl.take().unwrap();
