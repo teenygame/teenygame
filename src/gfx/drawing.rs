@@ -90,7 +90,17 @@ pub trait Image {
 
 impl Image for Arc<crate::asset::Image> {
     fn get_image_id(&self, canvas: &mut Canvas) -> femtovg::ImageId {
-        canvas.get_or_create_image(self.clone(), ImageFlags::NEAREST)
+        canvas
+            .image_id_cache
+            .entry(self.as_ref() as *const _ as *const c_void)
+            .or_insert_with(|| CachedImageId {
+                weak: Box::new(Arc::downgrade(self)),
+                id: canvas
+                    .inner
+                    .create_image(femtovg::ImageSource::from(&**self), ImageFlags::NEAREST)
+                    .unwrap(),
+            })
+            .id
     }
 
     fn size(&self) -> (u32, u32) {
@@ -131,7 +141,7 @@ impl Image for Arc<Texture> {
                 )
                 .unwrap();
             canvas.image_id_cache.insert(
-                (self.as_ref() as *const _ as *const c_void, flags),
+                self.as_ref() as *const _ as *const c_void,
                 CachedImageId {
                     weak: Box::new(Arc::downgrade(self)),
                     id,
@@ -295,7 +305,7 @@ pub struct Canvas {
     inner: femtovg::Canvas<OpenGl>,
     size: (u32, u32),
     framebuffer: Option<ImageId>,
-    image_id_cache: HashMap<(*const c_void, ImageFlags), CachedImageId>,
+    image_id_cache: HashMap<*const c_void, CachedImageId>,
 }
 
 impl Canvas {
@@ -310,30 +320,6 @@ impl Canvas {
 
     pub fn size(&self) -> (u32, u32) {
         self.size
-    }
-
-    fn get_or_create_image(
-        &mut self,
-        img: Arc<crate::asset::Image>,
-        flags: ImageFlags,
-    ) -> femtovg::ImageId {
-        match self
-            .image_id_cache
-            .entry((img.as_ref() as *const _ as *const c_void, flags))
-        {
-            std::collections::hash_map::Entry::Occupied(e) => e.get().id,
-            std::collections::hash_map::Entry::Vacant(e) => {
-                let id = self
-                    .inner
-                    .create_image(femtovg::ImageSource::from(&*img), flags)
-                    .unwrap();
-                e.insert(CachedImageId {
-                    weak: Box::new(Arc::downgrade(&img)),
-                    id,
-                });
-                id
-            }
-        }
     }
 
     pub(super) fn set_size(&mut self, width: u32, height: u32, dpi: f32) {
