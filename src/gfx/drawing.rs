@@ -62,16 +62,14 @@ impl AffineTransform {
 
 impl MulAssign<AffineTransform> for AffineTransform {
     fn mul_assign(&mut self, rhs: AffineTransform) {
-        (
-            self.0[0], self.0[1], self.0[2], self.0[3], self.0[4], self.0[5],
-        ) = (
+        self.0 = [
             self.0[0] * rhs.0[0] + self.0[1] * rhs.0[2],
             self.0[0] * rhs.0[1] + self.0[1] * rhs.0[3],
             self.0[2] * rhs.0[0] + self.0[3] * rhs.0[2],
             self.0[2] * rhs.0[1] + self.0[3] * rhs.0[3],
             self.0[4] * rhs.0[0] + self.0[5] * rhs.0[2] + rhs.0[4],
             self.0[4] * rhs.0[1] + self.0[5] * rhs.0[3] + rhs.0[5],
-        );
+        ];
     }
 }
 
