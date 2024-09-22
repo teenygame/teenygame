@@ -98,13 +98,19 @@ impl Image for Arc<crate::asset::Image> {
     }
 }
 
+struct PendingTextureUpdate {
+    buf: ImgVec<Rgba<u8>>,
+    x: usize,
+    y: usize,
+}
+
 pub struct Texture {
     id: Mutex<Option<ImageId>>,
     width: usize,
     height: usize,
     flip_y: bool,
 
-    pending_update: Mutex<Option<(ImgVec<Rgba<u8>>, (usize, usize))>>,
+    pending_update: Mutex<Option<PendingTextureUpdate>>,
 }
 
 impl Image for Arc<Texture> {
@@ -134,8 +140,11 @@ impl Image for Arc<Texture> {
             id
         });
 
-        if let Some((src, (x, y))) = self.pending_update.lock().unwrap().take() {
-            canvas.inner.update_image(id, src.as_ref(), x, y).unwrap();
+        if let Some(update) = self.pending_update.lock().unwrap().take() {
+            canvas
+                .inner
+                .update_image(id, update.buf.as_ref(), update.x, update.y)
+                .unwrap();
         }
         id
     }
@@ -182,8 +191,11 @@ impl Texture {
 
     pub fn update(&self, src: ImageData, x: usize, y: usize) {
         // TODO: Check bounds.
-        *self.pending_update.lock().unwrap() =
-            Some((ImgVec::new(src.buf.to_vec(), src.width, src.height), (x, y)));
+        *self.pending_update.lock().unwrap() = Some(PendingTextureUpdate {
+            buf: ImgVec::new(src.buf.to_vec(), src.width, src.height),
+            x,
+            y,
+        });
     }
 }
 
