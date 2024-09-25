@@ -9,6 +9,8 @@ use std::{
     sync::{Arc, Mutex, Weak},
 };
 
+use crate::asset::{font, Font};
+
 pub struct AffineTransform([f32; 6]);
 
 impl AffineTransform {
@@ -347,58 +349,48 @@ impl Canvas {
     }
 
     #[inline]
-    pub fn draw_image<D>(&mut self, d: &D, x: f32, y: f32)
-    where
-        D: Image,
-    {
-        self.draw_image_blend(d, x, y, Default::default());
+    pub fn draw_image(&mut self, img: &impl Image, x: f32, y: f32) {
+        self.draw_image_blend(img, x, y, Default::default());
     }
 
     #[inline]
-    pub fn draw_image_blend<D>(&mut self, d: &D, x: f32, y: f32, blend_mode: BlendMode)
-    where
-        D: Image,
-    {
-        let (iw, ih) = d.size();
-        self.draw_image_destination_scale_blend(d, x, y, iw as f32, ih as f32, blend_mode);
+    pub fn draw_image_blend(&mut self, img: &impl Image, x: f32, y: f32, blend_mode: BlendMode) {
+        let (iw, ih) = img.size();
+        self.draw_image_destination_scale_blend(img, x, y, iw as f32, ih as f32, blend_mode);
     }
 
     #[inline]
-    pub fn draw_image_destination_scale<D>(
+    pub fn draw_image_destination_scale(
         &mut self,
-        d: &D,
+        img: &impl Image,
         x: f32,
         y: f32,
         width: f32,
         height: f32,
-    ) where
-        D: Image,
-    {
-        self.draw_image_destination_scale_blend(d, x, y, width, height, Default::default());
+    ) {
+        self.draw_image_destination_scale_blend(img, x, y, width, height, Default::default());
     }
 
     #[inline]
-    pub fn draw_image_destination_scale_blend<D>(
+    pub fn draw_image_destination_scale_blend(
         &mut self,
-        d: &D,
+        img: &impl Image,
         x: f32,
         y: f32,
         width: f32,
         height: f32,
         blend_mode: BlendMode,
-    ) where
-        D: Image,
-    {
-        let (iw, ih) = d.size();
+    ) {
+        let (iw, ih) = img.size();
         self.draw_image_source_clip_destination_scale_blend(
-            d, 0.0, 0.0, iw as f32, ih as f32, x, y, width, height, blend_mode,
+            img, 0.0, 0.0, iw as f32, ih as f32, x, y, width, height, blend_mode,
         );
     }
 
     #[inline]
-    pub fn draw_image_source_clip_destination_scale<D>(
+    pub fn draw_image_source_clip_destination_scale(
         &mut self,
-        d: &D,
+        img: &impl Image,
         sx: f32,
         sy: f32,
         s_width: f32,
@@ -407,11 +399,9 @@ impl Canvas {
         y: f32,
         width: f32,
         height: f32,
-    ) where
-        D: Image,
-    {
+    ) {
         self.draw_image_source_clip_destination_scale_blend(
-            d,
+            img,
             sx,
             sy,
             s_width,
@@ -424,9 +414,9 @@ impl Canvas {
         );
     }
 
-    pub fn draw_image_source_clip_destination_scale_blend<D>(
+    pub fn draw_image_source_clip_destination_scale_blend(
         &mut self,
-        d: &D,
+        img: &impl Image,
         sx: f32,
         sy: f32,
         s_width: f32,
@@ -436,12 +426,10 @@ impl Canvas {
         width: f32,
         height: f32,
         blend_mode: BlendMode,
-    ) where
-        D: Image,
-    {
+    ) {
         self.set_blend_mode(blend_mode);
-        let (iw, ih) = d.size();
-        let id = d.get_image_id(self);
+        let (iw, ih) = img.size();
+        let id = img.get_image_id(self);
         self.inner.fill_path(
             &Path::new().rect(x, y, width, height).0,
             &femtovg::Paint::image(
@@ -455,6 +443,31 @@ impl Canvas {
             )
             .with_anti_alias(false),
         );
+    }
+
+    pub fn draw_text(
+        &mut self,
+        font: &Arc<Font>,
+        x: f32,
+        y: f32,
+        text: impl AsRef<str>,
+        paint: &Paint,
+    ) {
+        let mut inner = font.0.lock().unwrap();
+        let font_id = match &*inner {
+            font::Inner::Pending(vec) => {
+                // TODO: Don't panic!
+                let font_id = self.inner.add_font_mem(&vec).unwrap();
+                *inner = font::Inner::Loaded(font_id);
+                font_id
+            }
+            font::Inner::Loaded(font_id) => *font_id,
+        };
+
+        // TODO: Don't panic!
+        self.inner
+            .fill_text(x, y, text, &paint.to_impl_paint().with_font(&[font_id]))
+            .unwrap();
     }
 
     pub fn clear_rect(&mut self, x: u32, y: u32, width: u32, height: u32, color: Color) {

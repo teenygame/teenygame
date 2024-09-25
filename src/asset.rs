@@ -1,8 +1,10 @@
-mod image;
-mod raw;
+pub(crate) mod font;
+pub(crate) mod image;
+pub(crate) mod raw;
 
-pub use image::*;
-pub use raw::*;
+pub use font::Font;
+pub use image::{Image, ImageAndMetadata};
+pub use raw::Raw;
 
 use std::{
     future::Future,
