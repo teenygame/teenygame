@@ -1,6 +1,7 @@
 use bytemuck::checked::cast_slice;
 use femtovg::{
-    imgref::ImgVec, renderer::OpenGl, rgb::Rgba, ImageFlags, ImageId, PixelFormat, Transform2D,
+    imgref::ImgVec, renderer::OpenGl, rgb::Rgba, FontId, ImageFlags, ImageId, PixelFormat,
+    Transform2D,
 };
 use std::{
     collections::HashMap,
@@ -445,7 +446,47 @@ impl Canvas {
         );
     }
 
-    pub fn draw_text(
+    fn get_font_id(&mut self, font: &Arc<Font>) -> FontId {
+        let mut inner = font.0.lock().unwrap();
+        match &*inner {
+            font::Inner::Pending(vec) => {
+                // TODO: Don't panic!
+                let font_id = self.inner.add_font_mem(&vec).unwrap();
+                *inner = font::Inner::Loaded(font_id);
+                font_id
+            }
+            font::Inner::Loaded(font_id) => *font_id,
+        }
+    }
+
+    pub fn stroke_text(
+        &mut self,
+        font: &Arc<Font>,
+        x: f32,
+        y: f32,
+        text: impl AsRef<str>,
+        style: &TextStyle,
+        stroke: &Stroke,
+        paint: &Paint,
+    ) {
+        let font_id = self.get_font_id(font);
+
+        self.set_blend_mode(paint.blend_mode);
+        let mut impl_paint = paint.to_impl_paint();
+        style.apply_to_paint(&mut impl_paint);
+        stroke.apply_to_paint(&mut impl_paint);
+        // TODO: Don't panic!
+        self.inner
+            .stroke_text(
+                x,
+                y,
+                text,
+                &impl_paint.with_font(&[font_id]).with_anti_alias(false),
+            )
+            .unwrap();
+    }
+
+    pub fn fill_text(
         &mut self,
         font: &Arc<Font>,
         x: f32,
@@ -454,23 +495,19 @@ impl Canvas {
         style: &TextStyle,
         paint: &Paint,
     ) {
-        let mut inner = font.0.lock().unwrap();
-        let font_id = match &*inner {
-            font::Inner::Pending(vec) => {
-                // TODO: Don't panic!
-                let font_id = self.inner.add_font_mem(&vec).unwrap();
-                *inner = font::Inner::Loaded(font_id);
-                font_id
-            }
-            font::Inner::Loaded(font_id) => *font_id,
-        };
+        let font_id = self.get_font_id(font);
 
         self.set_blend_mode(paint.blend_mode);
-        let mut paint = paint.to_impl_paint();
-        style.apply_to_paint(&mut paint);
+        let mut impl_paint = paint.to_impl_paint();
+        style.apply_to_paint(&mut impl_paint);
         // TODO: Don't panic!
         self.inner
-            .fill_text(x, y, text, &paint.with_font(&[font_id]))
+            .fill_text(
+                x,
+                y,
+                text,
+                &impl_paint.with_font(&[font_id]).with_anti_alias(false),
+            )
             .unwrap();
     }
 
