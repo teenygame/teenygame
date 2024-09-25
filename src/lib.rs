@@ -118,7 +118,7 @@ where
                 self.draw_time_accumulator += frame_time;
 
                 while self.draw_time_accumulator >= G::TICK_TIME {
-                    game.update(&mut Context {
+                    game.update(&mut UpdateState {
                         input: &self.input_state,
                         #[cfg(feature = "audio")]
                         audio: &self.audio,
@@ -172,20 +172,14 @@ where
             UserEvent::GraphicsState(gfx) => {
                 #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
                 let _guard = self.tokio_rt.enter();
-
-                self.game = Some(G::new(&mut Context {
-                    input: &self.input_state,
-                    #[cfg(feature = "audio")]
-                    audio: &self.audio,
-                }));
-
+                self.game = Some(G::new());
                 self.gfx = Some(gfx);
             }
         }
     }
 }
 
-pub struct Context<'a> {
+pub struct UpdateState<'a> {
     pub input: &'a InputState,
     #[cfg(feature = "audio")]
     pub audio: &'a AudioContext,
@@ -194,9 +188,9 @@ pub struct Context<'a> {
 pub trait Game {
     const TICK_TIME: Duration = Duration::from_millis(1000 / 60);
 
-    fn new(cx: &mut Context) -> Self;
-    fn update(&mut self, cx: &mut Context);
-    fn draw(&mut self, cx: &mut Canvas);
+    fn new() -> Self;
+    fn update(&mut self, s: &mut UpdateState);
+    fn draw(&mut self, canvas: &mut Canvas);
 }
 
 pub fn run<G>()
