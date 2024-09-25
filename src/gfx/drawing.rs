@@ -451,6 +451,7 @@ impl Canvas {
         x: f32,
         y: f32,
         text: impl AsRef<str>,
+        style: &TextStyle,
         paint: &Paint,
     ) {
         let mut inner = font.0.lock().unwrap();
@@ -464,9 +465,12 @@ impl Canvas {
             font::Inner::Loaded(font_id) => *font_id,
         };
 
+        self.set_blend_mode(paint.blend_mode);
+        let mut paint = paint.to_impl_paint();
+        style.apply_to_paint(&mut paint);
         // TODO: Don't panic!
         self.inner
-            .fill_text(x, y, text, &paint.to_impl_paint().with_font(&[font_id]))
+            .fill_text(x, y, text, &paint.with_font(&[font_id]))
             .unwrap();
     }
 
@@ -761,6 +765,71 @@ impl Paint {
         };
         paint.set_anti_alias(self.anti_alias);
         paint
+    }
+}
+
+#[derive(Default, Copy, Clone)]
+pub enum Align {
+    #[default]
+    Left,
+    Center,
+    Right,
+}
+
+impl From<Align> for femtovg::Align {
+    fn from(value: Align) -> Self {
+        match value {
+            Align::Left => femtovg::Align::Left,
+            Align::Center => femtovg::Align::Center,
+            Align::Right => femtovg::Align::Right,
+        }
+    }
+}
+
+#[derive(Default, Copy, Clone)]
+pub enum Baseline {
+    Top,
+    Middle,
+    #[default]
+    Alphabetic,
+    Bottom,
+}
+
+impl From<Baseline> for femtovg::Baseline {
+    fn from(value: Baseline) -> Self {
+        match value {
+            Baseline::Top => femtovg::Baseline::Top,
+            Baseline::Middle => femtovg::Baseline::Middle,
+            Baseline::Alphabetic => femtovg::Baseline::Alphabetic,
+            Baseline::Bottom => femtovg::Baseline::Bottom,
+        }
+    }
+}
+
+pub struct TextStyle {
+    pub size: f32,
+    pub letter_spacing: f32,
+    pub baseline: Baseline,
+    pub align: Align,
+}
+
+impl Default for TextStyle {
+    fn default() -> Self {
+        Self {
+            size: 10.0,
+            letter_spacing: Default::default(),
+            baseline: Default::default(),
+            align: Default::default(),
+        }
+    }
+}
+
+impl TextStyle {
+    fn apply_to_paint(&self, paint: &mut femtovg::Paint) {
+        paint.set_font_size(self.size);
+        paint.set_letter_spacing(self.letter_spacing);
+        paint.set_text_baseline(self.baseline.into());
+        paint.set_text_align(self.align.into());
     }
 }
 
