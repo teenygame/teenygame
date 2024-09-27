@@ -156,8 +156,6 @@ impl GraphicsState {
             )
         };
 
-        window.set_cursor_visible(false);
-
         let mut canvas = Canvas::new(femtovg::Canvas::new(renderer).unwrap());
 
         let dpi = window.scale_factor();
