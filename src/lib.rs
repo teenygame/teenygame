@@ -122,6 +122,7 @@ where
                         input: &self.input_state,
                         #[cfg(feature = "audio")]
                         audio: &self.audio,
+                        window_size: gfx.window.inner_size().into(),
                     });
                     self.input_state.update();
                     self.draw_time_accumulator -= G::TICK_TIME;
@@ -183,6 +184,7 @@ pub struct UpdateState<'a> {
     pub input: &'a InputState,
     #[cfg(feature = "audio")]
     pub audio: &'a AudioContext,
+    pub window_size: (u32, u32),
 }
 
 pub trait Game {
