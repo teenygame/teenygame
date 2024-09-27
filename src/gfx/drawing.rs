@@ -58,6 +58,34 @@ impl AffineTransform {
         ])
     }
 
+    pub fn determinant(&self) -> f32 {
+        self.0[0] * self.0[3] - self.0[1] * self.0[2]
+    }
+
+    pub fn inverse(&self) -> Option<Self> {
+        let det = self.determinant();
+        if det == 0.0 {
+            return None;
+        }
+
+        let inv_det = 1.0 / det;
+        Some(Self([
+            inv_det * self.0[3],
+            inv_det * -self.0[1],
+            inv_det * -self.0[2],
+            inv_det * self.0[0],
+            inv_det * (self.0[1] * self.0[5] - self.0[3] * self.0[4]),
+            inv_det * (self.0[4] * self.0[2] - self.0[0] * self.0[5]),
+        ]))
+    }
+
+    pub fn transform(&self, x: f32, y: f32) -> (f32, f32) {
+        (
+            x * self.0[0] + y * self.0[2] + self.0[4],
+            x * self.0[1] + y * self.0[3] + self.0[5],
+        )
+    }
+
     pub fn as_array(&self) -> &[f32; 6] {
         &self.0
     }
