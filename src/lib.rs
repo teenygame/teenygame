@@ -15,6 +15,7 @@ use std::time::Duration;
 use time::Instant;
 use winit::event::KeyEvent;
 use winit::keyboard::PhysicalKey;
+use winit::window::Window;
 use winit::{
     application::ApplicationHandler,
     event::WindowEvent,
@@ -122,7 +123,8 @@ where
                         input: &self.input_state,
                         #[cfg(feature = "audio")]
                         audio: &self.audio,
-                        canvas_size: gfx.canvas.size(),
+                        canvas: &gfx.canvas,
+                        window: &gfx.window,
                     });
                     self.input_state.update();
                     self.draw_time_accumulator -= G::TICK_TIME;
@@ -184,7 +186,14 @@ pub struct UpdateState<'a> {
     pub input: &'a InputState,
     #[cfg(feature = "audio")]
     pub audio: &'a AudioContext,
-    pub canvas_size: (u32, u32),
+    canvas: &'a Canvas,
+    window: &'a Window,
+}
+
+impl<'a> UpdateState<'a> {
+    pub fn canvas_size(&self) -> (u32, u32) {
+        self.canvas.size()
+    }
 }
 
 pub trait Game {
