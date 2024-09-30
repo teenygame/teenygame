@@ -1,11 +1,23 @@
 use std::sync::Arc;
 
-use crate::asset::Audio;
 use anyhow::{anyhow, Error};
-use kira::manager::{AudioManager, AudioManagerSettings, DefaultBackend};
+use kira::{
+    manager::{AudioManager, AudioManagerSettings, DefaultBackend},
+    sound::SoundData,
+};
 
 pub struct AudioContext {
     audio_manager: AudioManager,
+}
+
+pub trait Audio {
+    fn to_sound_data(&self) -> impl SoundData;
+}
+
+impl Audio for Arc<crate::asset::Audio> {
+    fn to_sound_data(&self) -> impl SoundData {
+        self.0.clone()
+    }
 }
 
 impl AudioContext {
@@ -15,9 +27,9 @@ impl AudioContext {
         })
     }
 
-    pub fn play(&mut self, source: &Arc<Audio>) -> Result<(), Error> {
+    pub fn play(&mut self, source: impl Audio) -> Result<(), Error> {
         self.audio_manager
-            .play(source.0.clone())
+            .play(source.to_sound_data())
             .map_err(|e| anyhow!("{}", e))?;
         Ok(())
     }
