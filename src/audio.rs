@@ -27,7 +27,7 @@ impl AudioContext {
         })
     }
 
-    pub fn play(&mut self, source: impl Audio) -> Result<(), Error> {
+    pub fn play(&mut self, source: &impl Audio) -> Result<(), Error> {
         self.audio_manager
             .play(source.to_sound_data())
             .map_err(|e| anyhow!("{}", e))?;
