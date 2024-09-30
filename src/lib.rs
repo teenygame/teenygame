@@ -122,7 +122,7 @@ where
                     game.update(&mut UpdateState {
                         input: &self.input_state,
                         #[cfg(feature = "audio")]
-                        audio: &self.audio,
+                        audio: &mut self.audio,
                         canvas: &gfx.canvas,
                         window: &gfx.window,
                     });
@@ -185,7 +185,7 @@ where
 pub struct UpdateState<'a> {
     pub input: &'a InputState,
     #[cfg(feature = "audio")]
-    pub audio: &'a AudioContext,
+    pub audio: &'a mut AudioContext,
     canvas: &'a Canvas,
     window: &'a Window,
 }

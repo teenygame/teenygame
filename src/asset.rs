@@ -1,7 +1,9 @@
+pub(crate) mod audio;
 pub(crate) mod font;
 pub(crate) mod image;
 pub(crate) mod raw;
 
+pub use audio::Audio;
 pub use font::Font;
 pub use image::{Image, ImageAndMetadata};
 pub use raw::Raw;

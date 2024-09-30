@@ -1,24 +1,24 @@
-use rodio::{OutputStream, OutputStreamHandle};
-pub use rodio::{PlayError, Source, StreamError};
+use std::sync::Arc;
+
+use crate::asset::Audio;
+use anyhow::{anyhow, Error};
+use kira::manager::{AudioManager, AudioManagerSettings, DefaultBackend};
 
 pub struct AudioContext {
-    _stream: OutputStream,
-    stream_handle: OutputStreamHandle,
+    audio_manager: AudioManager,
 }
 
 impl AudioContext {
-    pub(crate) fn new() -> Result<Self, StreamError> {
-        let (stream, stream_handle) = OutputStream::try_default()?;
+    pub(crate) fn new() -> Result<Self, Error> {
         Ok(Self {
-            _stream: stream,
-            stream_handle,
+            audio_manager: AudioManager::<DefaultBackend>::new(AudioManagerSettings::default())?,
         })
     }
 
-    pub fn play<S>(&self, source: S) -> Result<(), PlayError>
-    where
-        S: Source<Item = f32> + Send + 'static,
-    {
-        self.stream_handle.play_raw(source)
+    pub fn play(&mut self, source: &Arc<Audio>) -> Result<(), Error> {
+        self.audio_manager
+            .play(source.0.clone())
+            .map_err(|e| anyhow!("{}", e))?;
+        Ok(())
     }
 }
