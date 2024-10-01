@@ -1,8 +1,8 @@
-use std::sync::Arc;
-
-use crate::asset::Audio;
 use anyhow::{anyhow, Error};
-use kira::manager::{AudioManager, AudioManagerSettings, DefaultBackend};
+use kira::{
+    manager::{AudioManager, AudioManagerSettings, DefaultBackend},
+    sound::static_sound::StaticSoundData,
+};
 
 pub struct AudioContext {
     audio_manager: AudioManager,
@@ -15,9 +15,9 @@ impl AudioContext {
         })
     }
 
-    pub fn play(&mut self, source: &Arc<Audio>) -> Result<(), Error> {
+    pub fn play(&mut self, source: StaticSoundData) -> Result<(), Error> {
         self.audio_manager
-            .play(source.0.clone())
+            .play(source)
             .map_err(|e| anyhow!("{}", e))?;
         Ok(())
     }
