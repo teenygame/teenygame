@@ -1,7 +1,11 @@
-#[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
-mod native;
+use crate::file::read;
 
-#[cfg(target_arch = "wasm32")]
-mod web;
+use super::Loadable;
 
 pub struct Raw(pub Vec<u8>);
+
+impl Loadable for Raw {
+    async fn load(path: &str) -> Result<Self, anyhow::Error> {
+        Ok(Raw(read(path).await?))
+    }
+}

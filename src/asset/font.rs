@@ -2,7 +2,9 @@ use std::sync::Mutex;
 
 use femtovg::FontId;
 
-use super::{Loadable, Raw};
+use crate::file::read;
+
+use super::Loadable;
 
 pub(crate) enum Inner {
     Pending(Vec<u8>),
@@ -13,6 +15,6 @@ pub struct Font(pub(crate) Mutex<Inner>);
 
 impl Loadable for Font {
     async fn load(path: &str) -> Result<Self, anyhow::Error> {
-        Ok(Self(Mutex::new(Inner::Pending(Raw::load(path).await?.0))))
+        Ok(Self(Mutex::new(Inner::Pending(read(path).await?))))
     }
 }
