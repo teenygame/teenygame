@@ -216,7 +216,7 @@ impl teenygame::Game for Game {
                 align: Align::Center,
                 ..TextStyle::new(&self.font, 128.0)
             };
-            let metrics = style.measure_text("GAME OVER");
+            let metrics = canvas.measure_text("GAME OVER", &style);
 
             canvas.fill_text(
                 (BOARD_WIDTH * CELL_SIZE / 2) as f32,

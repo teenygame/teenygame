@@ -3,8 +3,9 @@
 pub use femtovg::imgref::ImgRef;
 use femtovg::{
     imgref::ImgVec, renderer::OpenGl, rgb::Rgba, FontId, ImageFlags, ImageId, PixelFormat,
-    TextContext, Transform2D,
+    Transform2D,
 };
+use rustybuzz::ttf_parser::Face;
 use std::{
     collections::HashMap,
     ffi::c_void,
@@ -21,17 +22,20 @@ pub(crate) enum FontInner {
 /// A font that can be used to draw text.
 pub struct Font {
     pub(crate) inner: Mutex<FontInner>,
-    text_context: TextContext,
-    internal_font_id: FontId,
+    metrics: FontMetrics,
 }
 
 /// Metrics for a font.
+#[derive(Clone)]
 pub struct FontMetrics {
     /// The recommended distance above the baseline.
-    pub ascent: f32,
+    pub ascender: i16,
 
     /// The recommended distance below the baseline.
-    pub descent: f32,
+    pub descender: i16,
+
+    /// Units per em.
+    pub units_per_em: u16,
 }
 
 /// Metrics for some measured text.
@@ -44,40 +48,25 @@ pub struct TextMetrics {
 }
 
 /// Error for when font loading fails.
-#[derive(thiserror::Error, Debug)]
-#[error("font load error")]
-pub struct FontLoadError;
+pub use rustybuzz::ttf_parser::FaceParsingError;
 
 impl Font {
     /// Load a font from raw TrueType bytes.
-    pub fn load(raw: &[u8]) -> Result<Self, FontLoadError> {
-        // It's unfortunate that we can't measure text without a TextContext, so each font will be loaded twice: once into this internal TextContext, and once into the canvas's TextContext.
-        //
-        // Additionally, we can't use a global TextContext because TextContext is !Sync :(
-        let text_context = TextContext::default();
-        let font_id = text_context.add_font_mem(raw).map_err(|_| FontLoadError)?;
+    pub fn load(raw: &[u8]) -> Result<Self, FaceParsingError> {
+        let face = Face::parse(raw, 0)?;
         Ok(Self {
             inner: Mutex::new(FontInner::Pending(raw.to_vec())),
-            text_context,
-            internal_font_id: font_id,
+            metrics: FontMetrics {
+                ascender: face.ascender(),
+                descender: face.descender(),
+                units_per_em: face.units_per_em(),
+            },
         })
     }
 
     /// Gets the metrics of the font.
-    pub fn metrics(&self, size: f32) -> FontMetrics {
-        let metrics = self
-            .text_context
-            .measure_font(
-                &femtovg::Paint::default()
-                    .with_font(&[self.internal_font_id])
-                    .with_font_size(size),
-            )
-            .unwrap();
-
-        FontMetrics {
-            ascent: metrics.ascender(),
-            descent: metrics.descender(),
-        }
+    pub fn metrics(&self) -> FontMetrics {
+        self.metrics.clone()
     }
 }
 
@@ -655,6 +644,21 @@ impl Canvas {
         stroke.apply_to_paint(&mut impl_paint);
         self.inner.stroke_path(&path.0, &impl_paint);
     }
+
+    /// Measure the given text using the given style.
+    pub fn measure_text(&mut self, text: impl AsRef<str>, style: &TextStyle) -> TextMetrics {
+        let mut impl_paint = femtovg::Paint::default();
+        style.apply_to_paint(&mut impl_paint, self);
+        let metrics = self
+            .inner
+            .measure_text(0.0, 0.0, text, &impl_paint)
+            .unwrap();
+
+        TextMetrics {
+            width: metrics.width(),
+            height: metrics.height(),
+        }
+    }
 }
 
 /// An RGBA color.
@@ -1085,30 +1089,6 @@ impl<'a> TextStyle<'a> {
             letter_spacing: Default::default(),
             baseline: Default::default(),
             align: Default::default(),
-        }
-    }
-
-    /// Measure the given text using the given style.
-    pub fn measure_text(&self, text: impl AsRef<str>) -> TextMetrics {
-        let metrics = self
-            .font
-            .text_context
-            .measure_text(
-                0.0,
-                0.0,
-                text,
-                &femtovg::Paint::default()
-                    .with_font(&[self.font.internal_font_id])
-                    .with_font_size(self.size)
-                    .with_letter_spacing(self.letter_spacing)
-                    .with_text_baseline(self.baseline.into_impl())
-                    .with_text_align(self.align.into_impl()),
-            )
-            .unwrap();
-
-        TextMetrics {
-            width: metrics.width(),
-            height: metrics.height(),
         }
     }
 }
