@@ -31,6 +31,7 @@ impl Font {
 /// A 3x2 transformation matrix representing an affine transform.
 ///
 /// In other words, it is a 2x2 transformation matrix with a translation component, or a 3x3 homogenous transform matrix.
+#[derive(Clone)]
 pub struct AffineTransform([f32; 6]);
 
 impl AffineTransform {
@@ -801,6 +802,7 @@ impl Default for BlendMode {
     }
 }
 
+#[derive(Clone)]
 enum PaintKind {
     Color(Color),
     LinearGradient {
@@ -820,6 +822,7 @@ enum PaintKind {
 }
 
 /// Paint for filling paths.
+#[derive(Clone)]
 pub struct Paint {
     kind: PaintKind,
 
@@ -970,6 +973,7 @@ impl From<Baseline> for femtovg::Baseline {
 }
 
 /// Style for drawing text.
+#[derive(Clone)]
 pub struct TextStyle<'a> {
     /// Font to use.
     pub font: &'a Font,
@@ -1011,7 +1015,7 @@ impl<'a> TextStyle<'a> {
 }
 
 /// Stroke style for stroking paths.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Stroke {
     /// Width of the stroke.
     pub width: f32,
@@ -1040,6 +1044,7 @@ impl Stroke {
 }
 
 /// A path that can be filled or stroked.
+#[derive(Clone)]
 pub struct Path(femtovg::Path);
 
 impl Path {

@@ -1,9 +1,14 @@
 //! Audio support.
 
+use std::time::Duration;
+
 pub use kira::sound::FromFileError;
 use kira::{
     manager::{AudioManager, AudioManagerSettings, DefaultBackend},
-    sound::{static_sound::StaticSoundData, EndPosition, PlaybackPosition},
+    sound::{
+        static_sound::{StaticSoundData, StaticSoundHandle},
+        EndPosition, PlaybackPosition,
+    },
 };
 
 /// A source of sound data.
@@ -71,6 +76,91 @@ impl<'a> Sound<'a> {
     }
 }
 
+/// Handle for controlling playback of a currently playing song.
+///
+/// Will stop playback when dropped.
+pub struct PlaybackHandle(StaticSoundHandle);
+
+impl Drop for PlaybackHandle {
+    fn drop(&mut self) {
+        self.stop(Tween::default());
+    }
+}
+
+/// Easing motion of a tween.
+#[derive(Clone, Copy)]
+pub enum Easing {
+    /// $f(x) = x$
+    Linear,
+
+    /// $f(x) = x^k$
+    InPowi(i32),
+
+    /// $f(x) = 1 - x^{1 - k}$
+    OutPowi(i32),
+
+    /// $f(x) = \begin{cases} \frac{(2x)^k}{2} & \text{if }x < 0.5\\\\ \frac{1 - (2 - 2x)^{k} + 1}{2} & \text{otherwise}\end{cases}$
+    InOutPowi(i32),
+
+    /// $f(x) = x^k$ (64-bit float precision)
+    InPowf(f64),
+
+    /// $f(x) = 1 - x^{1 - k}$ (64-bit float precision)
+    OutPowf(f64),
+
+    /// $f(x) = \begin{cases} \frac{(2x)^k}{2} & \text{if }x < 0.5\\\\ \frac{1 - (2 - 2x)^{k} + 1}{2} & \text{otherwise}\end{cases}$ (64-bit float precision)
+    InOutPowf(f64),
+}
+
+impl From<Easing> for kira::tween::Easing {
+    fn from(value: Easing) -> Self {
+        match value {
+            Easing::Linear => Self::Linear,
+            Easing::InPowi(k) => Self::InPowi(k),
+            Easing::OutPowi(k) => Self::OutPowi(k),
+            Easing::InOutPowi(k) => Self::InOutPowi(k),
+            Easing::InPowf(k) => Self::InPowf(k),
+            Easing::OutPowf(k) => Self::OutPowf(k),
+            Easing::InOutPowf(k) => Self::InOutPowf(k),
+        }
+    }
+}
+
+/// Describes a transition between values.
+#[derive(Clone, Copy)]
+pub struct Tween {
+    /// Duration of the tween.
+    pub duration: Duration,
+
+    /// Easing function of the tween.
+    pub easing: Easing,
+}
+
+impl From<Tween> for kira::tween::Tween {
+    fn from(value: Tween) -> Self {
+        Self {
+            duration: value.duration,
+            easing: value.easing.into(),
+            ..Default::default()
+        }
+    }
+}
+
+impl Default for Tween {
+    fn default() -> Self {
+        Self {
+            duration: Duration::from_millis(10),
+            easing: Easing::Linear,
+        }
+    }
+}
+
+impl PlaybackHandle {
+    pub fn stop(&mut self, tween: Tween) {
+        self.0.stop(tween.into());
+    }
+}
+
 /// Context for playing audio.
 pub struct AudioContext {
     audio_manager: AudioManager,
@@ -84,13 +174,13 @@ impl AudioContext {
     }
 
     /// Plays a sound.
-    pub fn play(&mut self, sound: &Sound) {
+    pub fn play(&mut self, sound: &Sound) -> PlaybackHandle {
         let mut sound_data = sound.source.0.slice(Some(sound.playback_region.into()));
 
         if let Some(loop_region) = &sound.loop_region {
             sound_data = sound_data.loop_region(Some((*loop_region).into()));
         }
 
-        self.audio_manager.play(sound_data).unwrap();
+        PlaybackHandle(self.audio_manager.play(sound_data).unwrap())
     }
 }
