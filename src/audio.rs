@@ -24,12 +24,12 @@ pub struct Region {
     pub length: usize,
 }
 
-impl From<Region> for kira::sound::Region {
-    fn from(value: Region) -> Self {
-        Self {
-            start: PlaybackPosition::Samples(value.start as usize),
+impl Region {
+    fn into_impl(self) -> kira::sound::Region {
+        kira::sound::Region {
+            start: PlaybackPosition::Samples(self.start as usize),
             end: EndPosition::Custom(PlaybackPosition::Samples(
-                (value.start + value.length) as usize,
+                (self.start + self.length) as usize,
             )),
         }
     }
@@ -112,16 +112,16 @@ pub enum Easing {
     InOutPowf(f64),
 }
 
-impl From<Easing> for kira::tween::Easing {
-    fn from(value: Easing) -> Self {
-        match value {
-            Easing::Linear => Self::Linear,
-            Easing::InPowi(k) => Self::InPowi(k),
-            Easing::OutPowi(k) => Self::OutPowi(k),
-            Easing::InOutPowi(k) => Self::InOutPowi(k),
-            Easing::InPowf(k) => Self::InPowf(k),
-            Easing::OutPowf(k) => Self::OutPowf(k),
-            Easing::InOutPowf(k) => Self::InOutPowf(k),
+impl Easing {
+    fn into_impl(self) -> kira::tween::Easing {
+        match self {
+            Self::Linear => kira::tween::Easing::Linear,
+            Self::InPowi(k) => kira::tween::Easing::InPowi(k),
+            Self::OutPowi(k) => kira::tween::Easing::OutPowi(k),
+            Self::InOutPowi(k) => kira::tween::Easing::InOutPowi(k),
+            Self::InPowf(k) => kira::tween::Easing::InPowf(k),
+            Self::OutPowf(k) => kira::tween::Easing::OutPowf(k),
+            Self::InOutPowf(k) => kira::tween::Easing::InOutPowf(k),
         }
     }
 }
@@ -136,11 +136,11 @@ pub struct Tween {
     pub easing: Easing,
 }
 
-impl From<Tween> for kira::tween::Tween {
-    fn from(value: Tween) -> Self {
-        Self {
-            duration: value.duration,
-            easing: value.easing.into(),
+impl Tween {
+    fn into_impl(self) -> kira::tween::Tween {
+        kira::tween::Tween {
+            duration: self.duration,
+            easing: self.easing.into_impl(),
             ..Default::default()
         }
     }
@@ -157,7 +157,7 @@ impl Default for Tween {
 
 impl PlaybackHandle {
     pub fn stop(&mut self, tween: Tween) {
-        self.0.stop(tween.into());
+        self.0.stop(tween.into_impl());
     }
 }
 
@@ -175,10 +175,13 @@ impl AudioContext {
 
     /// Plays a sound.
     pub fn play(&mut self, sound: &Sound) -> PlaybackHandle {
-        let mut sound_data = sound.source.0.slice(Some(sound.playback_region.into()));
+        let mut sound_data = sound
+            .source
+            .0
+            .slice(Some(sound.playback_region.into_impl()));
 
         if let Some(loop_region) = &sound.loop_region {
-            sound_data = sound_data.loop_region(Some((*loop_region).into()));
+            sound_data = sound_data.loop_region(Some((*loop_region).into_impl()));
         }
 
         PlaybackHandle(self.audio_manager.play(sound_data).unwrap())

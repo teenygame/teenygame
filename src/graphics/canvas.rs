@@ -544,7 +544,7 @@ impl Canvas {
         paint: &Paint,
     ) {
         self.set_blend_mode(paint.blend_mode);
-        let mut impl_paint = paint.to_impl_paint();
+        let mut impl_paint = paint.to_impl();
         style.apply_to_paint(&mut impl_paint, self);
         stroke.apply_to_paint(&mut impl_paint);
         // TODO: Don't panic!
@@ -563,7 +563,7 @@ impl Canvas {
         paint: &Paint,
     ) {
         self.set_blend_mode(paint.blend_mode);
-        let mut impl_paint = paint.to_impl_paint();
+        let mut impl_paint = paint.to_impl();
         style.apply_to_paint(&mut impl_paint, self);
         // TODO: Don't panic!
         self.inner
@@ -586,19 +586,19 @@ impl Canvas {
 
     fn set_blend_mode(&mut self, BlendMode { sfactor, dfactor }: BlendMode) {
         self.inner
-            .global_composite_blend_func(sfactor.into(), dfactor.into());
+            .global_composite_blend_func(sfactor.to_impl(), dfactor.to_impl());
     }
 
     /// Fills a path with a paint.
     pub fn fill_path(&mut self, path: &Path, paint: &Paint) {
         self.set_blend_mode(paint.blend_mode);
-        self.inner.fill_path(&path.0, &paint.to_impl_paint());
+        self.inner.fill_path(&path.0, &paint.to_impl());
     }
 
     /// Strokes a path with a stroke and paint.
     pub fn stroke_path(&mut self, path: &Path, stroke: &Stroke, paint: &Paint) {
         self.set_blend_mode(paint.blend_mode);
-        let mut impl_paint = paint.to_impl_paint();
+        let mut impl_paint = paint.to_impl();
         stroke.apply_to_paint(&mut impl_paint);
         self.inner.stroke_path(&path.0, &impl_paint);
     }
@@ -621,12 +621,12 @@ pub enum LineCap {
     Square,
 }
 
-impl From<LineCap> for femtovg::LineCap {
-    fn from(value: LineCap) -> Self {
-        match value {
-            LineCap::Butt => femtovg::LineCap::Butt,
-            LineCap::Round => femtovg::LineCap::Round,
-            LineCap::Square => femtovg::LineCap::Square,
+impl LineCap {
+    fn into_impl(self) -> femtovg::LineCap {
+        match self {
+            Self::Butt => femtovg::LineCap::Butt,
+            Self::Round => femtovg::LineCap::Round,
+            Self::Square => femtovg::LineCap::Square,
         }
     }
 }
@@ -645,12 +645,12 @@ pub enum LineJoin {
     Bevel,
 }
 
-impl From<LineJoin> for femtovg::LineJoin {
-    fn from(value: LineJoin) -> Self {
-        match value {
-            LineJoin::Miter => femtovg::LineJoin::Miter,
-            LineJoin::Round => femtovg::LineJoin::Round,
-            LineJoin::Bevel => femtovg::LineJoin::Bevel,
+impl LineJoin {
+    fn into_impl(self) -> femtovg::LineJoin {
+        match self {
+            Self::Miter => femtovg::LineJoin::Miter,
+            Self::Round => femtovg::LineJoin::Round,
+            Self::Bevel => femtovg::LineJoin::Bevel,
         }
     }
 }
@@ -692,20 +692,20 @@ pub enum BlendFactor {
     SrcAlphaSaturate,
 }
 
-impl From<BlendFactor> for femtovg::BlendFactor {
-    fn from(value: BlendFactor) -> Self {
-        match value {
-            BlendFactor::Zero => femtovg::BlendFactor::Zero,
-            BlendFactor::One => femtovg::BlendFactor::One,
-            BlendFactor::SrcColor => femtovg::BlendFactor::SrcColor,
-            BlendFactor::OneMinusSrcColor => femtovg::BlendFactor::OneMinusSrcColor,
-            BlendFactor::DstColor => femtovg::BlendFactor::DstColor,
-            BlendFactor::OneMinusDstColor => femtovg::BlendFactor::OneMinusDstColor,
-            BlendFactor::SrcAlpha => femtovg::BlendFactor::SrcAlpha,
-            BlendFactor::OneMinusSrcAlpha => femtovg::BlendFactor::OneMinusSrcAlpha,
-            BlendFactor::DstAlpha => femtovg::BlendFactor::DstAlpha,
-            BlendFactor::OneMinusDstAlpha => femtovg::BlendFactor::OneMinusDstAlpha,
-            BlendFactor::SrcAlphaSaturate => femtovg::BlendFactor::SrcAlphaSaturate,
+impl BlendFactor {
+    fn to_impl(self) -> femtovg::BlendFactor {
+        match self {
+            Self::Zero => femtovg::BlendFactor::Zero,
+            Self::One => femtovg::BlendFactor::One,
+            Self::SrcColor => femtovg::BlendFactor::SrcColor,
+            Self::OneMinusSrcColor => femtovg::BlendFactor::OneMinusSrcColor,
+            Self::DstColor => femtovg::BlendFactor::DstColor,
+            Self::OneMinusDstColor => femtovg::BlendFactor::OneMinusDstColor,
+            Self::SrcAlpha => femtovg::BlendFactor::SrcAlpha,
+            Self::OneMinusSrcAlpha => femtovg::BlendFactor::OneMinusSrcAlpha,
+            Self::DstAlpha => femtovg::BlendFactor::DstAlpha,
+            Self::OneMinusDstAlpha => femtovg::BlendFactor::OneMinusDstAlpha,
+            Self::SrcAlphaSaturate => femtovg::BlendFactor::SrcAlphaSaturate,
         }
     }
 }
@@ -881,7 +881,7 @@ impl Paint {
         })
     }
 
-    fn to_impl_paint(&self) -> femtovg::Paint {
+    fn to_impl(&self) -> femtovg::Paint {
         let mut paint = match &self.kind {
             PaintKind::Color(c) => femtovg::Paint::color(femtovg::Color::rgba(c.r, c.g, c.b, c.a)),
             PaintKind::LinearGradient {
@@ -934,12 +934,12 @@ pub enum Align {
     Right,
 }
 
-impl From<Align> for femtovg::Align {
-    fn from(value: Align) -> Self {
-        match value {
-            Align::Left => femtovg::Align::Left,
-            Align::Center => femtovg::Align::Center,
-            Align::Right => femtovg::Align::Right,
+impl Align {
+    fn into_impl(self) -> femtovg::Align {
+        match self {
+            Self::Left => femtovg::Align::Left,
+            Self::Center => femtovg::Align::Center,
+            Self::Right => femtovg::Align::Right,
         }
     }
 }
@@ -961,13 +961,13 @@ pub enum Baseline {
     Bottom,
 }
 
-impl From<Baseline> for femtovg::Baseline {
-    fn from(value: Baseline) -> Self {
-        match value {
-            Baseline::Top => femtovg::Baseline::Top,
-            Baseline::Middle => femtovg::Baseline::Middle,
-            Baseline::Alphabetic => femtovg::Baseline::Alphabetic,
-            Baseline::Bottom => femtovg::Baseline::Bottom,
+impl Baseline {
+    fn into_impl(self) -> femtovg::Baseline {
+        match self {
+            Self::Top => femtovg::Baseline::Top,
+            Self::Middle => femtovg::Baseline::Middle,
+            Self::Alphabetic => femtovg::Baseline::Alphabetic,
+            Self::Bottom => femtovg::Baseline::Bottom,
         }
     }
 }
@@ -1009,8 +1009,8 @@ impl<'a> TextStyle<'a> {
         paint.set_font(&[canvas.get_font_id(self.font)]);
         paint.set_font_size(self.size);
         paint.set_letter_spacing(self.letter_spacing);
-        paint.set_text_baseline(self.baseline.into());
-        paint.set_text_align(self.align.into());
+        paint.set_text_baseline(self.baseline.into_impl());
+        paint.set_text_align(self.align.into_impl());
     }
 }
 
@@ -1037,9 +1037,9 @@ impl Stroke {
     fn apply_to_paint(&self, paint: &mut femtovg::Paint) {
         paint.set_line_width(self.width);
         paint.set_miter_limit(self.miter_limit);
-        paint.set_line_cap_start(self.cap_start.into());
-        paint.set_line_cap_end(self.cap_end.into());
-        paint.set_line_join(self.join.into());
+        paint.set_line_cap_start(self.cap_start.into_impl());
+        paint.set_line_cap_end(self.cap_end.into_impl());
+        paint.set_line_join(self.join.into_impl());
     }
 }
 
