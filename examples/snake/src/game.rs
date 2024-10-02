@@ -35,7 +35,7 @@ pub struct Game {
     snake: VecDeque<(usize, usize)>,
     direction: Direction,
     next_direction: Direction,
-    speed: u32,
+    score: u32,
     elapsed: u32,
 }
 
@@ -83,7 +83,7 @@ impl teenygame::Game for Game {
             snake,
             direction: SOUTH,
             next_direction: SOUTH,
-            speed: 15,
+            score: 0,
             elapsed: 0,
         };
         game.spawn_fruit();
@@ -120,8 +120,10 @@ impl teenygame::Game for Game {
             self.next_direction = SOUTH;
         }
 
+        let ticks_per_move = (15 / (self.score as f32 + 1.0).powf(0.25) as u32).max(1);
+
         self.elapsed += 1;
-        if self.elapsed < self.speed {
+        if self.elapsed < ticks_per_move {
             return;
         }
 
@@ -142,7 +144,7 @@ impl teenygame::Game for Game {
             }
             Cell::Fruit => {
                 self.spawn_fruit();
-                self.speed = (self.speed * 49 / 50).max(1);
+                self.score += 1;
                 s.audio.play(&Sound::new(&self.pickup_sfx)).detach();
             }
             Cell::Snake => {
