@@ -6,11 +6,23 @@ use femtovg::{
 use std::{
     collections::HashMap,
     ffi::c_void,
+    marker::PhantomData,
     ops::{Deref, DerefMut, Mul, MulAssign},
     sync::{Arc, Mutex, Weak},
 };
 
-use crate::asset::{font, Font};
+pub(crate) enum FontInner {
+    Pending(Vec<u8>),
+    Loaded(FontId),
+}
+
+pub struct Font(pub(crate) Mutex<FontInner>);
+
+impl Font {
+    pub fn load(raw: &[u8]) -> Self {
+        Self(Mutex::new(FontInner::Pending(raw.to_vec())))
+    }
+}
 
 pub struct AffineTransform([f32; 6]);
 
@@ -113,31 +125,6 @@ impl Mul<AffineTransform> for AffineTransform {
     }
 }
 
-pub trait Image {
-    fn get_image_id(&self, canvas: &mut Canvas) -> femtovg::ImageId;
-    fn size(&self) -> (u32, u32);
-}
-
-impl Image for Arc<crate::asset::Image> {
-    fn get_image_id(&self, canvas: &mut Canvas) -> femtovg::ImageId {
-        canvas
-            .image_id_cache
-            .entry(self.as_ref() as *const _ as *const c_void)
-            .or_insert_with(|| CachedImageId {
-                weak: Box::new(Arc::downgrade(self)),
-                id: canvas
-                    .inner
-                    .create_image(femtovg::ImageSource::from(&**self), ImageFlags::NEAREST)
-                    .unwrap(),
-            })
-            .id
-    }
-
-    fn size(&self) -> (u32, u32) {
-        self.as_ref().size()
-    }
-}
-
 struct PendingTextureUpdate {
     buf: ImgVec<Rgba<u8>>,
     x: usize,
@@ -146,6 +133,7 @@ struct PendingTextureUpdate {
 
 pub struct Texture {
     id: Mutex<Option<ImageId>>,
+    ref_counter: Arc<()>,
     width: usize,
     height: usize,
     flip_y: bool,
@@ -153,7 +141,41 @@ pub struct Texture {
     pending_update: Mutex<Option<PendingTextureUpdate>>,
 }
 
-impl Image for Arc<Texture> {
+impl Texture {
+    fn new(width: usize, height: usize, flip_y: bool) -> Self {
+        Self {
+            id: Mutex::new(None),
+            ref_counter: Arc::new(()),
+            width,
+            height,
+            flip_y,
+            pending_update: Mutex::new(None),
+        }
+    }
+
+    pub fn new_empty(width: usize, height: usize) -> Self {
+        Self::new(width, height, false)
+    }
+
+    pub fn new_framebuffer(width: usize, height: usize) -> Self {
+        Self::new(width, height, true)
+    }
+
+    pub fn update(&self, src: ImageData, x: usize, y: usize) {
+        // TODO: Check bounds.
+        *self.pending_update.lock().unwrap() = Some(PendingTextureUpdate {
+            buf: ImgVec::new(src.buf.to_vec(), src.width, src.height),
+            x,
+            y,
+        });
+    }
+
+    pub fn from_data(src: ImageData) -> Self {
+        let img = Self::new_empty(src.width, src.height);
+        img.update(src, 0, 0);
+        img
+    }
+
     fn get_image_id(&self, canvas: &mut Canvas) -> femtovg::ImageId {
         let id = *self.id.lock().unwrap().get_or_insert_with(|| {
             let mut flags = ImageFlags::NEAREST;
@@ -171,9 +193,9 @@ impl Image for Arc<Texture> {
                 )
                 .unwrap();
             canvas.image_id_cache.insert(
-                self.as_ref() as *const _ as *const c_void,
+                self.ref_counter.as_ref() as *const _ as *const c_void,
                 CachedImageId {
-                    weak: Box::new(Arc::downgrade(self)),
+                    weak: Arc::downgrade(&self.ref_counter),
                     id,
                 },
             );
@@ -189,15 +211,15 @@ impl Image for Arc<Texture> {
         id
     }
 
-    fn size(&self) -> (u32, u32) {
+    pub fn size(&self) -> (u32, u32) {
         (self.width as u32, self.height as u32)
     }
 }
 
 pub struct ImageData<'a> {
-    buf: &'a [Rgba<u8>],
-    width: usize,
-    height: usize,
+    pub buf: &'a [Rgba<u8>],
+    pub width: usize,
+    pub height: usize,
 }
 
 impl<'a> ImageData<'a> {
@@ -210,48 +232,9 @@ impl<'a> ImageData<'a> {
     }
 }
 
-impl Texture {
-    fn new(width: usize, height: usize, flip_y: bool) -> Arc<Self> {
-        Arc::new(Self {
-            id: Mutex::new(None),
-            width,
-            height,
-            flip_y,
-            pending_update: Mutex::new(None),
-        })
-    }
-
-    pub fn new_empty(width: usize, height: usize) -> Arc<Self> {
-        Self::new(width, height, false)
-    }
-
-    pub fn new_framebuffer(width: usize, height: usize) -> Arc<Self> {
-        Self::new(width, height, true)
-    }
-
-    pub fn update(&self, src: ImageData, x: usize, y: usize) {
-        // TODO: Check bounds.
-        *self.pending_update.lock().unwrap() = Some(PendingTextureUpdate {
-            buf: ImgVec::new(src.buf.to_vec(), src.width, src.height),
-            x,
-            y,
-        });
-    }
-}
-
 struct CachedImageId {
-    weak: Box<dyn AnyWeak>,
+    weak: Weak<()>,
     id: ImageId,
-}
-
-trait AnyWeak {
-    fn strong_count(&self) -> usize;
-}
-
-impl<T> AnyWeak for Weak<T> {
-    fn strong_count(&self) -> usize {
-        self.strong_count()
-    }
 }
 
 pub struct CanvasTransformGuard<'a> {
@@ -286,24 +269,29 @@ impl<'a> DerefMut for CanvasTransformGuard<'a> {
     }
 }
 
-pub struct CanvasFramebufferGuard<'a> {
+pub struct CanvasFramebufferGuard<'t, 'a> {
     canvas: &'a mut Canvas,
     prev_fb: Option<ImageId>,
+    _phantom: PhantomData<&'t ()>,
 }
 
-impl<'a> CanvasFramebufferGuard<'a> {
-    fn new(canvas: &'a mut Canvas, fb: Arc<Texture>) -> Self {
+impl<'t, 'a> CanvasFramebufferGuard<'t, 'a> {
+    fn new(canvas: &'a mut Canvas, fb: &'t Texture) -> Self {
         let prev_fb = canvas.framebuffer.take();
         let id = fb.get_image_id(canvas);
         canvas
             .inner
             .set_render_target(femtovg::RenderTarget::Image(id));
         canvas.framebuffer = Some(fb.get_image_id(canvas));
-        Self { canvas, prev_fb }
+        Self {
+            canvas,
+            prev_fb,
+            _phantom: PhantomData,
+        }
     }
 }
 
-impl<'a> Drop for CanvasFramebufferGuard<'a> {
+impl<'t, 'a> Drop for CanvasFramebufferGuard<'t, 'a> {
     fn drop(&mut self) {
         if let Some(fb) = &self.prev_fb {
             self.canvas
@@ -318,7 +306,7 @@ impl<'a> Drop for CanvasFramebufferGuard<'a> {
     }
 }
 
-impl<'a> Deref for CanvasFramebufferGuard<'a> {
+impl<'t, 'a> Deref for CanvasFramebufferGuard<'t, 'a> {
     type Target = Canvas;
 
     fn deref(&self) -> &Self::Target {
@@ -326,7 +314,7 @@ impl<'a> Deref for CanvasFramebufferGuard<'a> {
     }
 }
 
-impl<'a> DerefMut for CanvasFramebufferGuard<'a> {
+impl<'t, 'a> DerefMut for CanvasFramebufferGuard<'t, 'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.canvas
     }
@@ -369,8 +357,8 @@ impl Canvas {
         });
     }
 
-    pub fn use_framebuffer(&mut self, fb: Arc<Texture>) -> CanvasFramebufferGuard {
-        CanvasFramebufferGuard::new(self, fb)
+    pub fn use_framebuffer<'t>(&mut self, fb: &'t Texture) -> CanvasFramebufferGuard<'t, '_> {
+        CanvasFramebufferGuard::<'t, '_>::new(self, fb)
     }
 
     pub fn transform(&mut self, t: &AffineTransform) -> CanvasTransformGuard {
@@ -378,12 +366,12 @@ impl Canvas {
     }
 
     #[inline]
-    pub fn draw_image(&mut self, img: &impl Image, x: f32, y: f32) {
+    pub fn draw_image(&mut self, img: &Texture, x: f32, y: f32) {
         self.draw_image_blend(img, x, y, Default::default());
     }
 
     #[inline]
-    pub fn draw_image_blend(&mut self, img: &impl Image, x: f32, y: f32, blend_mode: BlendMode) {
+    pub fn draw_image_blend(&mut self, img: &Texture, x: f32, y: f32, blend_mode: BlendMode) {
         let (iw, ih) = img.size();
         self.draw_image_destination_scale_blend(img, x, y, iw as f32, ih as f32, blend_mode);
     }
@@ -391,7 +379,7 @@ impl Canvas {
     #[inline]
     pub fn draw_image_destination_scale(
         &mut self,
-        img: &impl Image,
+        img: &Texture,
         x: f32,
         y: f32,
         width: f32,
@@ -403,7 +391,7 @@ impl Canvas {
     #[inline]
     pub fn draw_image_destination_scale_blend(
         &mut self,
-        img: &impl Image,
+        img: &Texture,
         x: f32,
         y: f32,
         width: f32,
@@ -419,7 +407,7 @@ impl Canvas {
     #[inline]
     pub fn draw_image_source_clip_destination_scale(
         &mut self,
-        img: &impl Image,
+        img: &Texture,
         sx: f32,
         sy: f32,
         s_width: f32,
@@ -445,7 +433,7 @@ impl Canvas {
 
     pub fn draw_image_source_clip_destination_scale_blend(
         &mut self,
-        img: &impl Image,
+        img: &Texture,
         sx: f32,
         sy: f32,
         s_width: f32,
@@ -474,22 +462,22 @@ impl Canvas {
         );
     }
 
-    fn get_font_id(&mut self, font: &Arc<Font>) -> FontId {
+    fn get_font_id(&mut self, font: &Font) -> FontId {
         let mut inner = font.0.lock().unwrap();
         match &*inner {
-            font::Inner::Pending(vec) => {
+            FontInner::Pending(vec) => {
                 // TODO: Don't panic!
                 let font_id = self.inner.add_font_mem(&vec).unwrap();
-                *inner = font::Inner::Loaded(font_id);
+                *inner = FontInner::Loaded(font_id);
                 font_id
             }
-            font::Inner::Loaded(font_id) => *font_id,
+            FontInner::Loaded(font_id) => *font_id,
         }
     }
 
     pub fn stroke_text(
         &mut self,
-        font: &Arc<Font>,
+        font: &Font,
         x: f32,
         y: f32,
         text: impl AsRef<str>,
@@ -516,7 +504,7 @@ impl Canvas {
 
     pub fn fill_text(
         &mut self,
-        font: &Arc<Font>,
+        font: &Font,
         x: f32,
         y: f32,
         text: impl AsRef<str>,

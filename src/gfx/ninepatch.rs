@@ -1,11 +1,7 @@
-use std::sync::Arc;
-
-use crate::asset::Image;
-
-use super::drawing::{AffineTransform, BlendMode};
+use super::drawing::{AffineTransform, BlendMode, Texture};
 
 pub struct NinePatch<'a> {
-    img: &'a Arc<Image>,
+    img: &'a Texture,
     top_margin: u32,
     right_margin: u32,
     bottom_margin: u32,
@@ -14,7 +10,7 @@ pub struct NinePatch<'a> {
 
 impl<'a> NinePatch<'a> {
     pub fn new(
-        img: &'a Arc<Image>,
+        img: &'a Texture,
         top_margin: u32,
         right_margin: u32,
         bottom_margin: u32,
