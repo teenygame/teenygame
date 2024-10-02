@@ -1,29 +1,35 @@
+//! Input handling.
+
 use std::collections::HashSet;
 
-pub use winit::keyboard::KeyCode;
-use winit::{dpi::PhysicalPosition, event::MouseButton};
+use winit::dpi::PhysicalPosition;
+pub use winit::{event::MouseButton, keyboard::KeyCode};
 
+/// Keyboard state.
 pub struct Keyboard {
     last_keys_held: HashSet<KeyCode>,
     keys_held: HashSet<KeyCode>,
 }
 
 impl Keyboard {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             last_keys_held: HashSet::new(),
             keys_held: HashSet::new(),
         }
     }
 
+    /// Checks if the key was just pressed.
     pub fn is_key_pressed(&self, key: KeyCode) -> bool {
         !self.last_keys_held.contains(&key) && self.keys_held.contains(&key)
     }
 
+    /// Checks if the key was just released.
     pub fn is_key_released(&self, key: KeyCode) -> bool {
         self.last_keys_held.contains(&key) && !self.keys_held.contains(&key)
     }
 
+    /// Checks if the key is currently being held down.
     pub fn is_key_held(&self, key: KeyCode) -> bool {
         self.keys_held.contains(&key)
     }
@@ -41,13 +47,17 @@ impl Keyboard {
     }
 }
 
+/// Keeps track of the current state of input devices.
 pub struct InputState {
+    /// Keyboard state.
     pub keyboard: Keyboard,
+
+    /// Mouse state.
     pub mouse: Mouse,
 }
 
 impl InputState {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             keyboard: Keyboard::new(),
             mouse: Mouse::new(),
@@ -60,6 +70,7 @@ impl InputState {
     }
 }
 
+/// Mouse state.
 pub struct Mouse {
     last_mouse_buttons_held: HashSet<MouseButton>,
     mouse_buttons_held: HashSet<MouseButton>,
@@ -67,7 +78,7 @@ pub struct Mouse {
 }
 
 impl Mouse {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             last_mouse_buttons_held: HashSet::new(),
             mouse_buttons_held: HashSet::new(),
@@ -75,18 +86,24 @@ impl Mouse {
         }
     }
 
+    /// Checks if the button was just pressed.
     pub fn is_button_pressed(&self, button: MouseButton) -> bool {
         !self.last_mouse_buttons_held.contains(&button) && self.mouse_buttons_held.contains(&button)
     }
 
+    /// Checks if the button was just released.
     pub fn is_button_released(&self, button: MouseButton) -> bool {
         self.last_mouse_buttons_held.contains(&button) && !self.mouse_buttons_held.contains(&button)
     }
 
+    /// Checks if the button is being held down.
     pub fn is_button_held(&self, button: MouseButton) -> bool {
         self.mouse_buttons_held.contains(&button)
     }
 
+    /// Gets the current position of the mouse.
+    ///
+    /// May return [`None`] if the mouse is not within the confines of the window.
     pub fn position(&self) -> Option<(f64, f64)> {
         self.pos.map(|pos| pos.into())
     }

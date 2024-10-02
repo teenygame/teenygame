@@ -1,3 +1,5 @@
+//! Marker traits for compatiblity between web and native.
+
 #[cfg(not(target_arch = "wasm32"))]
 mod native;
 

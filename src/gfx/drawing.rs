@@ -1,4 +1,6 @@
-use bytemuck::checked::cast_slice;
+//! 2D drawing.
+
+pub use femtovg::imgref::ImgRef;
 use femtovg::{
     imgref::ImgVec, renderer::OpenGl, rgb::Rgba, FontId, ImageFlags, ImageId, PixelFormat,
     Transform2D,
@@ -16,18 +18,22 @@ pub(crate) enum FontInner {
     Loaded(FontId),
 }
 
+/// A font that can be used to draw text.
 pub struct Font(pub(crate) Mutex<FontInner>);
 
 impl Font {
+    /// Load a font from raw TrueType bytes.
     pub fn load(raw: &[u8]) -> Self {
         Self(Mutex::new(FontInner::Pending(raw.to_vec())))
     }
 }
 
+/// A 3x2 transformation matrix representing an affine transform, that is, a 2x2 transformation matrix with a translation component.
 pub struct AffineTransform([f32; 6]);
 
 impl AffineTransform {
-    pub fn identity() -> Self {
+    /// Creates an identity transform that does nothing.
+    pub const fn identity() -> Self {
         Self([
             1.0, 0.0, //
             0.0, 1.0, //
@@ -35,7 +41,16 @@ impl AffineTransform {
         ])
     }
 
-    pub fn new(m00: f32, m01: f32, m10: f32, m11: f32, tx: f32, ty: f32) -> Self {
+    /// Creates a matrix from each individual element.
+    ///
+    /// The matrix is in column-major order, that is:
+    ///
+    /// ```
+    /// [ m00, m01
+    ///   m10, m11
+    ///    tx,  ty ]
+    /// ```
+    pub const fn new(m00: f32, m01: f32, m10: f32, m11: f32, tx: f32, ty: f32) -> Self {
         Self([
             m00, m01, //
             m10, m11, //
@@ -43,7 +58,8 @@ impl AffineTransform {
         ])
     }
 
-    pub fn translation(tx: f32, ty: f32) -> Self {
+    /// Creates a transform that performs a translation.
+    pub const fn translation(tx: f32, ty: f32) -> Self {
         Self([
             1.0, 0.0, //
             0.0, 1.0, //
@@ -51,7 +67,8 @@ impl AffineTransform {
         ])
     }
 
-    pub fn scaling(sx: f32, sy: f32) -> Self {
+    /// Creates a transform that performs scaling.
+    pub const fn scaling(sx: f32, sy: f32) -> Self {
         Self([
             sx, 0.0, //
             0.0, sy, //
@@ -59,6 +76,7 @@ impl AffineTransform {
         ])
     }
 
+    /// Creates a transform that performs a rotation.
     pub fn rotation(theta: f32) -> Self {
         let c = theta.cos();
         let s = theta.sin();
@@ -70,11 +88,15 @@ impl AffineTransform {
         ])
     }
 
-    pub fn determinant(&self) -> f32 {
+    /// Computes the determinant of the matrix.
+    pub const fn determinant(&self) -> f32 {
         self.0[0] * self.0[3] - self.0[1] * self.0[2]
     }
 
-    pub fn inverse(&self) -> Option<Self> {
+    /// Computes the inverse of the matrix.
+    ///
+    /// If the matrix is degenerate (that is, the determinant is zero), returns [`None`].
+    pub const fn inverse(&self) -> Option<Self> {
         let det = self.determinant();
         if det == 0.0 {
             return None;
@@ -91,14 +113,16 @@ impl AffineTransform {
         ]))
     }
 
-    pub fn transform(&self, x: f32, y: f32) -> (f32, f32) {
+    /// Transforms a point by the matrix.
+    pub const fn transform(&self, x: f32, y: f32) -> (f32, f32) {
         (
             x * self.0[0] + y * self.0[2] + self.0[4],
             x * self.0[1] + y * self.0[3] + self.0[5],
         )
     }
 
-    pub fn as_array(&self) -> &[f32; 6] {
+    /// Returns the underlying array in column-major order.
+    pub const fn as_array(&self) -> &[f32; 6] {
         &self.0
     }
 }
@@ -131,6 +155,7 @@ struct PendingTextureUpdate {
     y: usize,
 }
 
+/// A texture that can be rendered to the screen.
 pub struct Texture {
     id: Mutex<Option<ImageId>>,
     ref_counter: Arc<()>,
@@ -153,25 +178,31 @@ impl Texture {
         }
     }
 
+    /// Creates a new empty texture.
     pub fn new_empty(width: usize, height: usize) -> Self {
         Self::new(width, height, false)
     }
 
+    /// Creates a new empty texture for use as a framebuffer.
+    ///
+    /// This is the same as [`Texture::new_empty`] except the Y direction is flipped.
     pub fn new_framebuffer(width: usize, height: usize) -> Self {
         Self::new(width, height, true)
     }
 
-    pub fn update(&self, src: ImageData, x: usize, y: usize) {
+    /// Updates the data in the texture.
+    pub fn update(&self, src: ImgRef<Rgba<u8>>, x: usize, y: usize) {
         // TODO: Check bounds.
         *self.pending_update.lock().unwrap() = Some(PendingTextureUpdate {
-            buf: ImgVec::new(src.buf.to_vec(), src.width, src.height),
+            buf: ImgVec::new(src.into_buf().to_vec(), src.width(), src.height()),
             x,
             y,
         });
     }
 
-    pub fn from_data(src: ImageData) -> Self {
-        let img = Self::new_empty(src.width, src.height);
+    /// Creates a texture from existing image data.
+    pub fn from_data(src: ImgRef<Rgba<u8>>) -> Self {
+        let img = Self::new_empty(src.width(), src.height());
         img.update(src, 0, 0);
         img
     }
@@ -211,24 +242,9 @@ impl Texture {
         id
     }
 
+    /// Gets the size of the texture.
     pub fn size(&self) -> (u32, u32) {
         (self.width as u32, self.height as u32)
-    }
-}
-
-pub struct ImageData<'a> {
-    pub buf: &'a [Rgba<u8>],
-    pub width: usize,
-    pub height: usize,
-}
-
-impl<'a> ImageData<'a> {
-    pub fn new(buf: &'a [u8], width: usize, height: usize) -> Self {
-        Self {
-            buf: cast_slice(buf),
-            width,
-            height,
-        }
     }
 }
 
@@ -237,6 +253,7 @@ struct CachedImageId {
     id: ImageId,
 }
 
+/// Guard that on [`drop`] will undo the current transform.
 pub struct CanvasTransformGuard<'a> {
     canvas: &'a mut Canvas,
 }
@@ -269,6 +286,7 @@ impl<'a> DerefMut for CanvasTransformGuard<'a> {
     }
 }
 
+/// Guard that on [`drop`] will switch to the previous framebuffer.
 pub struct CanvasFramebufferGuard<'t, 'a> {
     canvas: &'a mut Canvas,
     prev_fb: Option<ImageId>,
@@ -319,6 +337,8 @@ impl<'t, 'a> DerefMut for CanvasFramebufferGuard<'t, 'a> {
         self.canvas
     }
 }
+
+/// Canvas for drawing on.
 pub struct Canvas {
     inner: femtovg::Canvas<OpenGl>,
     size: (u32, u32),
@@ -336,6 +356,7 @@ impl Canvas {
         }
     }
 
+    /// Gets the current size of the canvas.
     pub fn size(&self) -> (u32, u32) {
         self.size
     }
@@ -357,25 +378,30 @@ impl Canvas {
         });
     }
 
+    /// Uses a texture as a framebuffer to render onto.
     pub fn use_framebuffer<'t>(&mut self, fb: &'t Texture) -> CanvasFramebufferGuard<'t, '_> {
         CanvasFramebufferGuard::<'t, '_>::new(self, fb)
     }
 
+    /// Uses a transform to draw with.
     pub fn transform(&mut self, t: &AffineTransform) -> CanvasTransformGuard {
         CanvasTransformGuard::new(self, t)
     }
 
+    /// Draws an image at a given position.
     #[inline]
     pub fn draw_image(&mut self, img: &Texture, x: f32, y: f32) {
         self.draw_image_blend(img, x, y, Default::default());
     }
 
+    /// Draws an image at a given position with a blend mode.
     #[inline]
     pub fn draw_image_blend(&mut self, img: &Texture, x: f32, y: f32, blend_mode: BlendMode) {
         let (iw, ih) = img.size();
         self.draw_image_destination_scale_blend(img, x, y, iw as f32, ih as f32, blend_mode);
     }
 
+    /// Draws an image at a given position and scaling.
     #[inline]
     pub fn draw_image_destination_scale(
         &mut self,
@@ -388,6 +414,7 @@ impl Canvas {
         self.draw_image_destination_scale_blend(img, x, y, width, height, Default::default());
     }
 
+    /// Draws an image at a given position and scaling with a blend mode.
     #[inline]
     pub fn draw_image_destination_scale_blend(
         &mut self,
@@ -404,6 +431,7 @@ impl Canvas {
         );
     }
 
+    /// Draws a subimage at a given position and scaling.
     #[inline]
     pub fn draw_image_source_clip_destination_scale(
         &mut self,
@@ -431,6 +459,7 @@ impl Canvas {
         );
     }
 
+    /// Draws a subimage at a given position and scaling with a blend mode.
     pub fn draw_image_source_clip_destination_scale_blend(
         &mut self,
         img: &Texture,
@@ -475,9 +504,9 @@ impl Canvas {
         }
     }
 
+    /// Strokes text at a given position.
     pub fn stroke_text(
         &mut self,
-        font: &Font,
         x: f32,
         y: f32,
         text: impl AsRef<str>,
@@ -485,50 +514,45 @@ impl Canvas {
         stroke: &Stroke,
         paint: &Paint,
     ) {
-        let font_id = self.get_font_id(font);
-
         self.set_blend_mode(paint.blend_mode);
         let mut impl_paint = paint.to_impl_paint();
-        style.apply_to_paint(&mut impl_paint);
+        style.apply_to_paint(&mut impl_paint, self);
         stroke.apply_to_paint(&mut impl_paint);
         // TODO: Don't panic!
         self.inner
-            .stroke_text(
-                x,
-                y,
-                text,
-                &impl_paint.with_font(&[font_id]).with_anti_alias(false),
-            )
+            .stroke_text(x, y, text, &impl_paint.with_anti_alias(false))
             .unwrap();
     }
 
+    /// Fills text at a given position.
     pub fn fill_text(
         &mut self,
-        font: &Font,
         x: f32,
         y: f32,
         text: impl AsRef<str>,
         style: &TextStyle,
         paint: &Paint,
     ) {
-        let font_id = self.get_font_id(font);
-
         self.set_blend_mode(paint.blend_mode);
         let mut impl_paint = paint.to_impl_paint();
-        style.apply_to_paint(&mut impl_paint);
+        style.apply_to_paint(&mut impl_paint, self);
         // TODO: Don't panic!
         self.inner
-            .fill_text(
-                x,
-                y,
-                text,
-                &impl_paint.with_font(&[font_id]).with_anti_alias(false),
-            )
+            .fill_text(x, y, text, &impl_paint.with_anti_alias(false))
             .unwrap();
     }
 
+    /// Clears a rectangle with a color at a given position.
+    ///
+    /// Note that this is unaffected by transforms.
     pub fn clear_rect(&mut self, x: u32, y: u32, width: u32, height: u32, color: Color) {
-        self.inner.clear_rect(x, y, width, height, color.into());
+        self.inner.clear_rect(
+            x,
+            y,
+            width,
+            height,
+            femtovg::Color::rgba(color.r, color.g, color.b, color.a),
+        );
     }
 
     fn set_blend_mode(&mut self, BlendMode { sfactor, dfactor }: BlendMode) {
@@ -536,11 +560,13 @@ impl Canvas {
             .global_composite_blend_func(sfactor.into(), dfactor.into());
     }
 
+    /// Fills a path with a paint.
     pub fn fill_path(&mut self, path: &Path, paint: &Paint) {
         self.set_blend_mode(paint.blend_mode);
         self.inner.fill_path(&path.0, &paint.to_impl_paint());
     }
 
+    /// Strokes a path with a stroke and paint.
     pub fn stroke_path(&mut self, path: &Path, stroke: &Stroke, paint: &Paint) {
         self.set_blend_mode(paint.blend_mode);
         let mut impl_paint = paint.to_impl_paint();
@@ -549,36 +575,20 @@ impl Canvas {
     }
 }
 
-#[derive(Copy, Clone)]
-pub struct Color {
-    pub r: f32,
-    pub g: f32,
-    pub b: f32,
-    pub a: f32,
-}
+/// An RGBA color.
+pub type Color = Rgba<u8>;
 
-impl Color {
-    pub const fn rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
-        Self { r, g, b, a }
-    }
-}
-
-impl From<Color> for femtovg::Color {
-    fn from(value: Color) -> Self {
-        Self {
-            r: value.r,
-            g: value.g,
-            b: value.b,
-            a: value.a,
-        }
-    }
-}
-
+/// Treatment for beginning and end of paths.
 #[derive(Default, Copy, Clone)]
 pub enum LineCap {
     #[default]
+    /// The stroke ends with the path, and does not project beyond it.
     Butt,
+
+    /// The stroke projects out as a semicircle, with the center at the end of the path.
     Round,
+
+    /// The stroke projects out as a square, with the center at the end of the path.
     Square,
 }
 
@@ -592,11 +602,17 @@ impl From<LineCap> for femtovg::LineCap {
     }
 }
 
+/// Treatment for where lines join on a stroked path.
 #[derive(Default, Copy, Clone)]
 pub enum LineJoin {
     #[default]
+    /// The outer edges of a join meet at a sharp angle.
     Miter,
+
+    /// The outer edges of a join meet in a circular arc.
     Round,
+
+    /// The outer edges of a join meet with a straight line.
     Bevel,
 }
 
@@ -610,18 +626,40 @@ impl From<LineJoin> for femtovg::LineJoin {
     }
 }
 
+/// Determines how blend factors are computed.
 #[derive(Copy, Clone)]
 pub enum BlendFactor {
+    /// $(0, 0, 0, 0)$
     Zero,
+
+    /// $(1, 1, 1, 1)$
     One,
+
+    /// $(\frac{R_s}{k_R}, \frac{G_s}{k_G}, \frac{B_s}{k_B}, \frac{A_s}{k_A})$
     SrcColor,
+
+    /// $(1 - \frac{R_s}{k_R}, 1 - \frac{G_s}{k_G}, 1 - \frac{B_s}{k_B}, 1 - \frac{A_s}{k_A})$
     OneMinusSrcColor,
+
+    /// $(\frac{R_d}{k_R}, \frac{G_d}{k_G}, \frac{B_d}{k_B}, \frac{A_d}{k_A})$
     DstColor,
+
+    /// $(1 - \frac{R_d}{k_R}, 1 - \frac{G_d}{k_G}, 1 - \frac{B_d}{k_B}, 1 - \frac{A_d}{k_A})$
     OneMinusDstColor,
+
+    /// $(\frac{A_s}{k_a}, \frac{A_s}{k_a}, \frac{A_s}{k_a}, \frac{A_s}{k_a})$
     SrcAlpha,
+
+    /// $(1 - \frac{A_s}{k_a}, 1 - \frac{A_s}{k_a}, 1 - \frac{A_s}{k_a}, 1 - \frac{A_s}{k_a})$
     OneMinusSrcAlpha,
+
+    /// $(\frac{A_d}{k_a}, \frac{A_d}{k_a}, \frac{A_d}{k_a}, \frac{A_d}{k_a})$
     DstAlpha,
+
+    /// $(1 - \frac{A_d}{k_a}, 1 - \frac{A_d}{k_a}, 1 - \frac{A_d}{k_a}, 1 - \frac{A_d}{k_a})$
     OneMinusDstAlpha,
+
+    /// $(\frac{\text{min}(A_s, k_A - A_d)}{k_A}, \frac{\text{min}(A_s, k_A - A_d)}{k_A}, \frac{\text{min}(A_s, k_A - A_d)}{k_A}, 1)$
     SrcAlphaSaturate,
 }
 
@@ -643,68 +681,86 @@ impl From<BlendFactor> for femtovg::BlendFactor {
     }
 }
 
+/// Blend mode for specifying how drawing should be blended.
 #[derive(Clone, Copy)]
 pub struct BlendMode {
+    /// Computation for the source blend factor.
     pub sfactor: BlendFactor,
+
+    /// Computation for the destination blend factor.
     pub dfactor: BlendFactor,
 }
 
 impl BlendMode {
+    /// Destination pixels covered by the source are cleared to 0.
     pub const CLEAR: Self = Self {
         sfactor: BlendFactor::Zero,
         dfactor: BlendFactor::Zero,
     };
 
+    /// The source pixels replace the destination pixels.
     pub const SRC: Self = Self {
         sfactor: BlendFactor::One,
         dfactor: BlendFactor::Zero,
     };
 
+    /// The source pixels are drawn over the destination pixels.
+    ///
+    /// This is the default blend mode and does what you would expect.
     pub const SRC_OVER: Self = Self {
         sfactor: BlendFactor::One,
         dfactor: BlendFactor::OneMinusSrcAlpha,
     };
 
+    /// The source pixels are drawn behind the destination pixels.
     pub const DST_OVER: Self = Self {
         sfactor: BlendFactor::OneMinusDstAlpha,
         dfactor: BlendFactor::One,
     };
 
+    /// Keeps the source pixels that cover the destination pixels, discards the remaining source and destination pixels.
     pub const SRC_IN: Self = Self {
         sfactor: BlendFactor::DstAlpha,
         dfactor: BlendFactor::Zero,
     };
 
+    /// Keeps the destination pixels that cover source pixels, discards the remaining source and destination pixels.
     pub const DST_IN: Self = Self {
         sfactor: BlendFactor::Zero,
         dfactor: BlendFactor::SrcAlpha,
     };
 
+    /// Keeps the source pixels that do not cover destination pixels. Discards source pixels that cover destination pixels. Discards all destination pixels.
     pub const SRC_OUT: Self = Self {
         sfactor: BlendFactor::OneMinusDstAlpha,
         dfactor: BlendFactor::Zero,
     };
 
+    /// Keeps the destination pixels that are not covered by source pixels. Discards destination pixels that are covered by source pixels. Discards all source pixels.
     pub const DST_OUT: Self = Self {
         sfactor: BlendFactor::Zero,
         dfactor: BlendFactor::OneMinusSrcAlpha,
     };
 
+    /// The source pixels are discarded, leaving the destination intact.
     pub const DST: Self = Self {
         sfactor: BlendFactor::Zero,
         dfactor: BlendFactor::One,
     };
 
+    /// Discards the source pixels that do not cover destination pixels. Draws remaining source pixels over destination pixels.
     pub const SRC_ATOP: Self = Self {
         sfactor: BlendFactor::DstAlpha,
         dfactor: BlendFactor::OneMinusSrcAlpha,
     };
 
+    /// Discards the destination pixels that are not covered by source pixels. Draws remaining destination pixels over source pixels.
     pub const DST_ATOP: Self = Self {
         sfactor: BlendFactor::OneMinusDstAlpha,
         dfactor: BlendFactor::SrcAlpha,
     };
 
+    /// Discards the source and destination pixels where source pixels cover destination pixels. Draws remaining source pixels.
     pub const ALPHA_XOR: Self = Self {
         sfactor: BlendFactor::OneMinusDstAlpha,
         dfactor: BlendFactor::OneMinusSrcAlpha,
@@ -735,9 +791,14 @@ enum PaintKind {
     },
 }
 
+/// Paint for filling paths.
 pub struct Paint {
     kind: PaintKind,
+
+    /// The blend mode to paint with.
     pub blend_mode: BlendMode,
+
+    /// Whether or not the filled shape should be antialiased.
     pub anti_alias: bool,
 }
 
@@ -750,10 +811,12 @@ impl Paint {
         }
     }
 
+    /// Creates a paint with a solid color.
     pub fn color(color: Color) -> Self {
         Self::new(PaintKind::Color(color))
     }
 
+    /// Creates a paint with a linear gradient.
     pub fn linear_gradient(
         start_x: f32,
         start_y: f32,
@@ -770,6 +833,7 @@ impl Paint {
         })
     }
 
+    /// Creates a paint with a radial gradient.
     pub fn radial_gradient(
         cx: f32,
         cy: f32,
@@ -788,7 +852,7 @@ impl Paint {
 
     fn to_impl_paint(&self) -> femtovg::Paint {
         let mut paint = match &self.kind {
-            PaintKind::Color(c) => femtovg::Paint::color((*c).into()),
+            PaintKind::Color(c) => femtovg::Paint::color(femtovg::Color::rgba(c.r, c.g, c.b, c.a)),
             PaintKind::LinearGradient {
                 start_x,
                 start_y,
@@ -800,7 +864,9 @@ impl Paint {
                 *start_y,
                 *end_x,
                 *end_y,
-                stops.iter().map(|(t, c)| (*t, (*c).into())),
+                stops
+                    .iter()
+                    .map(|(t, c)| (*t, femtovg::Color::rgba(c.r, c.g, c.b, c.a))),
             ),
             PaintKind::RadialGradient {
                 cx,
@@ -813,7 +879,9 @@ impl Paint {
                 *cy,
                 *in_radius,
                 *out_radius,
-                stops.iter().map(|(t, c)| (*t, (*c).into())),
+                stops
+                    .iter()
+                    .map(|(t, c)| (*t, femtovg::Color::rgba(c.r, c.g, c.b, c.a))),
             ),
         };
         paint.set_anti_alias(self.anti_alias);
@@ -821,11 +889,17 @@ impl Paint {
     }
 }
 
+/// Alignment for text.
 #[derive(Default, Copy, Clone)]
 pub enum Align {
     #[default]
+    /// Text is aligned flush to the left edge.
     Left,
+
+    /// Text is aligned to the center and grows evenly towards both edges.
     Center,
+
+    /// Text is aligned flush to the right edge.
     Right,
 }
 
@@ -839,12 +913,20 @@ impl From<Align> for femtovg::Align {
     }
 }
 
+/// Baseline for aligning text to.
 #[derive(Default, Copy, Clone)]
 pub enum Baseline {
+    /// Align to the top of the em square.
     Top,
+
+    /// Align to the middle of the em square.
     Middle,
+
     #[default]
+    /// Align via the normal alphabetic baseline.
     Alphabetic,
+
+    /// Align to the bottom of the em square.
     Bottom,
 }
 
@@ -859,17 +941,30 @@ impl From<Baseline> for femtovg::Baseline {
     }
 }
 
-pub struct TextStyle {
+/// Style for drawing text.
+pub struct TextStyle<'a> {
+    /// Font to use.
+    pub font: &'a Font,
+
+    /// Font size.
     pub size: f32,
+
+    /// How far the letters should be spaced from each other.
     pub letter_spacing: f32,
+
+    /// Baseline of the text.
     pub baseline: Baseline,
+
+    /// Alignment of the text.
     pub align: Align,
 }
 
-impl Default for TextStyle {
-    fn default() -> Self {
+impl<'a> TextStyle<'a> {
+    /// Creates a new text style with a given font and size.
+    pub fn new(font: &'a Font, size: f32) -> Self {
         Self {
-            size: 10.0,
+            font,
+            size,
             letter_spacing: Default::default(),
             baseline: Default::default(),
             align: Default::default(),
@@ -877,8 +972,9 @@ impl Default for TextStyle {
     }
 }
 
-impl TextStyle {
-    fn apply_to_paint(&self, paint: &mut femtovg::Paint) {
+impl<'a> TextStyle<'a> {
+    fn apply_to_paint(&self, paint: &mut femtovg::Paint, canvas: &mut Canvas) {
+        paint.set_font(&[canvas.get_font_id(self.font)]);
         paint.set_font_size(self.size);
         paint.set_letter_spacing(self.letter_spacing);
         paint.set_text_baseline(self.baseline.into());
@@ -886,43 +982,58 @@ impl TextStyle {
     }
 }
 
+/// Stroke style for stroking paths.
 #[derive(Default)]
 pub struct Stroke {
+    /// Width of the stroke.
     pub width: f32,
+
+    /// Limit for which a sharp corner is drawn beveled.
     pub miter_limit: f32,
-    pub line_cap_start: LineCap,
-    pub line_cap_end: LineCap,
-    pub line_join: LineJoin,
+
+    /// Treatment for the beginning of the path.
+    pub cap_start: LineCap,
+
+    /// Treatment for the end of the path.
+    pub cap_end: LineCap,
+
+    /// Treatment for how lines are joined on the path.
+    pub join: LineJoin,
 }
 
 impl Stroke {
     fn apply_to_paint(&self, paint: &mut femtovg::Paint) {
         paint.set_line_width(self.width);
         paint.set_miter_limit(self.miter_limit);
-        paint.set_line_cap_start(self.line_cap_start.into());
-        paint.set_line_cap_end(self.line_cap_end.into());
-        paint.set_line_join(self.line_join.into());
+        paint.set_line_cap_start(self.cap_start.into());
+        paint.set_line_cap_end(self.cap_end.into());
+        paint.set_line_join(self.join.into());
     }
 }
 
+/// A path that can be filled or stroked.
 pub struct Path(femtovg::Path);
 
 impl Path {
+    /// Creates a new empty path.
     pub fn new() -> Self {
         Self(femtovg::Path::new())
     }
 
+    /// Starts a new sub-path.
     pub fn move_to(&mut self, x: f32, y: f32) -> &mut Self {
         self.0.move_to(x, y);
         self
     }
 
+    /// Adds a line to the current sub-path.
     pub fn line_to(&mut self, x: f32, y: f32) -> &mut Self {
         self.0.line_to(x, y);
         self
     }
 
-    pub fn bezier_to(
+    /// Adds a cubic Bézier curve to the current sub-path.
+    pub fn bezier_curve_to(
         &mut self,
         c1x: f32,
         c1y: f32,
@@ -935,31 +1046,37 @@ impl Path {
         self
     }
 
-    pub fn quad_to(&mut self, cx: f32, cy: f32, x: f32, y: f32) -> &mut Self {
+    /// Adds a quadratic Bézier curve to the current sub-path.
+    pub fn quadratic_curve_to(&mut self, cx: f32, cy: f32, x: f32, y: f32) -> &mut Self {
         self.0.quad_to(cx, cy, x, y);
         self
     }
 
+    /// Adds a circular arc to the current sub-path.
     pub fn arc_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, radius: f32) -> &mut Self {
         self.0.arc_to(x1, y1, x2, y2, radius);
         self
     }
 
+    /// Adds a rectangle to the current sub-path.
     pub fn rect(&mut self, x: f32, y: f32, w: f32, h: f32) -> &mut Self {
         self.0.rect(x, y, w, h);
         self
     }
 
+    /// Adds an ellipse to the current sub-path.
     pub fn ellipse(&mut self, cx: f32, cy: f32, rx: f32, ry: f32) -> &mut Self {
         self.0.ellipse(cx, cy, rx, ry);
         self
     }
 
+    /// Adds a circle to the current sub-path.
     pub fn circle(&mut self, cx: f32, cy: f32, r: f32) -> &mut Self {
         self.0.circle(cx, cy, r);
         self
     }
 
+    /// Closes the current sub-path by adding a straight line from the current point to the start of the current sub-path.
     pub fn close(&mut self) -> &mut Self {
         self.0.close();
         self

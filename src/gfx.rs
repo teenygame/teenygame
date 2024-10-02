@@ -1,3 +1,5 @@
+//! Graphics support.
+
 pub mod drawing;
 pub mod ninepatch;
 

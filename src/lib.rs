@@ -1,3 +1,11 @@
+//! **teenygame** is a real simple multiplatform game framework for Rust. It currently supports the following platforms:
+//! - Windows
+//! - Linux
+//! - macOS
+//! - Web
+//!
+//! Mobile support might work but no promises!
+
 #[cfg(feature = "audio")]
 pub mod audio;
 pub mod file;
@@ -15,7 +23,6 @@ use std::time::Duration;
 use time::Instant;
 use winit::event::KeyEvent;
 use winit::keyboard::PhysicalKey;
-use winit::window::Window;
 use winit::{
     application::ApplicationHandler,
     event::WindowEvent,
@@ -26,7 +33,7 @@ enum UserEvent {
     GraphicsState(GraphicsState),
 }
 
-pub struct Application<G> {
+struct Application<G> {
     #[cfg(feature = "audio")]
     audio: AudioContext,
 
@@ -119,12 +126,12 @@ where
                 self.draw_time_accumulator += frame_time;
 
                 while self.draw_time_accumulator >= G::TICK_TIME {
-                    game.update(&mut UpdateState {
+                    game.update(&mut UpdateContext {
                         input: &self.input_state,
                         #[cfg(feature = "audio")]
                         audio: &mut self.audio,
                         canvas: &gfx.canvas,
-                        window: &gfx.window,
+                        window: Window(&gfx.window),
                     });
                     self.input_state.update();
                     self.draw_time_accumulator -= G::TICK_TIME;
@@ -175,35 +182,88 @@ where
             UserEvent::GraphicsState(gfx) => {
                 #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
                 let _guard = self.tokio_rt.enter();
-                self.game = Some(G::new());
+                self.game = Some(G::new(Window(&gfx.window)));
                 self.gfx = Some(gfx);
             }
         }
     }
 }
 
-pub struct UpdateState<'a> {
+/// Bag of stuff available to be accessed during [`Game::update`].
+pub struct UpdateContext<'a> {
+    /// Input state.
     pub input: &'a InputState,
+
     #[cfg(feature = "audio")]
+    /// Audio context.
     pub audio: &'a mut AudioContext,
+
+    /// Window.
+    pub window: Window<'a>,
+
     canvas: &'a Canvas,
-    window: &'a Window,
 }
 
-impl<'a> UpdateState<'a> {
+impl<'a> UpdateContext<'a> {
+    /// Current size of the canvas.
     pub fn canvas_size(&self) -> (u32, u32) {
         self.canvas.size()
     }
 }
 
+/// Window.
+pub struct Window<'a>(&'a winit::window::Window);
+
+impl<'a> Window<'a> {
+    /// Sets the title of the window.
+    pub fn set_title(&self, title: &str) {
+        self.0.set_title(title);
+    }
+}
+
+/// Trait to implement for your game.
 pub trait Game {
+    /// How long the wait time between each call to [`Game::update`] should be.
+    ///
+    /// Defaults to 60 ticks per second.
     const TICK_TIME: Duration = Duration::from_millis(1000 / 60);
 
-    fn new() -> Self;
-    fn update(&mut self, s: &mut UpdateState);
+    /// Constructs your game.
+    ///
+    /// If Tokio support is enabled, the Tokio runtime will be available here.
+    fn new(window: Window) -> Self;
+
+    /// Updates the game state every interval of [`Game::TICK_TIME`].
+    ///
+    /// This may be called multiple times between calls to [`Game::draw`], depending on the time elapsed. This implements the [fix your timestep](https://gafferongames.com/post/fix_your_timestep/) pattern internally.
+    ///
+    /// You may not perform any drawing in this function.
+    fn update(&mut self, s: &mut UpdateContext);
+
+    /// Draws the game state to the canvas.
     fn draw(&mut self, canvas: &mut Canvas);
 }
 
+/// Runs the game.
+///
+/// This should be the only function called in your `main`. It will:
+/// - Set up logging (and panic handling for WASM).
+/// - Create the event loop.
+/// - If enabled and running on a native platform, start the Tokio runtime.
+/// - Starts the event loop and hands over control.
+///
+/// For example, on native platforms:
+/// ```
+/// fn main() { run::<Game>(); }
+/// ```
+///
+/// And on WASM:
+/// ```
+/// #[wasm_bindgen::prelude::wasm_bindgen]
+/// pub fn init() { run::<Game>(); }
+/// ```
+///
+/// Easy!
 pub fn run<G>()
 where
     G: Game,

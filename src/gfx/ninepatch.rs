@@ -1,36 +1,34 @@
+//! Nine-patch drawing.
+
 use super::drawing::{AffineTransform, BlendMode, Texture};
 
+/// Represents a nine-patch and its margins.
+///
+/// A nine-patch, or nine-slice, is a way to proportionally scale an image by splitting it into nine parts ([Wikipedia article](https://en.wikipedia.org/wiki/9-slice_scaling)).
 pub struct NinePatch<'a> {
-    img: &'a Texture,
-    top_margin: u32,
-    right_margin: u32,
-    bottom_margin: u32,
-    left_margin: u32,
+    /// Texture to draw.
+    pub img: &'a Texture,
+
+    /// Top edge.
+    pub top_margin: u32,
+
+    /// Right edge.
+    pub right_margin: u32,
+
+    /// Bottom edge.
+    pub bottom_margin: u32,
+
+    /// Left edge.
+    pub left_margin: u32,
 }
 
 impl<'a> NinePatch<'a> {
-    pub fn new(
-        img: &'a Texture,
-        top_margin: u32,
-        right_margin: u32,
-        bottom_margin: u32,
-        left_margin: u32,
-    ) -> Self {
-        Self {
-            img,
-            top_margin,
-            right_margin,
-            bottom_margin,
-            left_margin,
-        }
-    }
-}
-
-impl<'a> NinePatch<'a> {
+    /// Draw the nine-patch to the canvas.
     pub fn draw(&self, canvas: &mut super::Canvas, x: u32, y: u32, width: u32, height: u32) {
         self.draw_blend(canvas, x, y, width, height, Default::default());
     }
 
+    /// Draw the nine-patch to the canvas using a blend mode.
     pub fn draw_blend(
         &self,
         canvas: &mut super::Canvas,
