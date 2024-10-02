@@ -22,7 +22,6 @@ serde = "1"
 bytemuck = "1.18"
 kira = { version = "0.9.5", optional = true }
 image = "0.25.2"
-rand = "0.8.5"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
@@ -46,7 +45,6 @@ tokio = { version = "1", features = ["rt-multi-thread", "fs"], optional = true }
 glutin = "0.32.1"
 glutin-winit = "0.5.0"
 raw-window-handle = "0.6.0"
-getrandom = { version = "*", features = ["js"] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = "0.3.34"

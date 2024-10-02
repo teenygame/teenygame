@@ -1,11 +1,10 @@
-use std::collections::VecDeque;
-
 use rand::Rng;
+use std::collections::VecDeque;
 use teenygame::{
     audio::{Sound, Source},
     graphics::{Align, Color, Font, Paint, Path, TextStyle},
     input::KeyCode,
-    run,
+    UpdateContext, Window,
 };
 
 const BOARD_WIDTH: usize = 40;
@@ -27,7 +26,7 @@ const SOUTH: Direction = (0, 1);
 const EAST: Direction = (1, 0);
 const WEST: Direction = (-1, 0);
 
-struct Game {
+pub struct Game {
     font: Font,
     pickup_sfx: Source,
     game_over_sfx: Source,
@@ -56,7 +55,7 @@ impl Game {
 }
 
 impl teenygame::Game for Game {
-    fn new(window: teenygame::Window) -> Self {
+    fn new(window: Window) -> Self {
         window.set_title("Snake");
         window.set_size(
             (BOARD_WIDTH * BLOCK_SIZE) as u32,
@@ -86,7 +85,7 @@ impl teenygame::Game for Game {
         game
     }
 
-    fn update(&mut self, s: &mut teenygame::UpdateContext) {
+    fn update(&mut self, s: &mut UpdateContext) {
         if self.game_over {
             return;
         }
@@ -197,8 +196,4 @@ impl teenygame::Game for Game {
             );
         }
     }
-}
-
-fn main() {
-    run::<Game>();
 }
