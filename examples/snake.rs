@@ -86,16 +86,28 @@ impl teenygame::Game for Game {
             return;
         }
 
-        if s.input.keyboard.is_key_held(KeyCode::ArrowLeft) && self.direction != EAST {
+        if (s.input.keyboard.is_key_held(KeyCode::ArrowLeft)
+            || s.input.keyboard.is_key_held(KeyCode::KeyA))
+            && self.direction != EAST
+        {
             self.next_direction = WEST;
         }
-        if s.input.keyboard.is_key_held(KeyCode::ArrowRight) && self.direction != WEST {
+        if (s.input.keyboard.is_key_held(KeyCode::ArrowRight)
+            || s.input.keyboard.is_key_held(KeyCode::KeyD))
+            && self.direction != WEST
+        {
             self.next_direction = EAST;
         }
-        if s.input.keyboard.is_key_held(KeyCode::ArrowUp) && self.direction != SOUTH {
+        if (s.input.keyboard.is_key_held(KeyCode::ArrowUp)
+            || s.input.keyboard.is_key_held(KeyCode::KeyW))
+            && self.direction != SOUTH
+        {
             self.next_direction = NORTH;
         }
-        if s.input.keyboard.is_key_held(KeyCode::ArrowDown) && self.direction != NORTH {
+        if (s.input.keyboard.is_key_held(KeyCode::ArrowDown)
+            || s.input.keyboard.is_key_held(KeyCode::KeyS))
+            && self.direction != NORTH
+        {
             self.next_direction = SOUTH;
         }
 
@@ -121,7 +133,7 @@ impl teenygame::Game for Game {
             }
             Cell::Fruit => {
                 self.spawn_fruit();
-                self.speed = self.speed * 9 / 10;
+                self.speed = (self.speed * 49 / 50).max(1);
             }
             Cell::Snake => {
                 self.game_over = true;
