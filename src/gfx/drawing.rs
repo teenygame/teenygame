@@ -28,7 +28,9 @@ impl Font {
     }
 }
 
-/// A 3x2 transformation matrix representing an affine transform, that is, a 2x2 transformation matrix with a translation component.
+/// A 3x2 transformation matrix representing an affine transform.
+///
+/// In other words, it is a 2x2 transformation matrix with a translation component, or a 3x3 homogenous transform matrix.
 pub struct AffineTransform([f32; 6]);
 
 impl AffineTransform {
@@ -45,11 +47,13 @@ impl AffineTransform {
     ///
     /// The matrix is in column-major order, that is:
     ///
-    /// ```
-    /// [ m00, m01
-    ///   m10, m11
-    ///    tx,  ty ]
-    /// ```
+    /// $$
+    /// \begin{bmatrix}
+    /// \texttt{m00} & \texttt{m10} & \texttt{tx} \\\\
+    /// \texttt{m01} & \texttt{m11} & \texttt{ty} \\\\
+    /// 0 & 0 & 1
+    /// \end{bmatrix}
+    /// $$
     pub const fn new(m00: f32, m01: f32, m10: f32, m11: f32, tx: f32, ty: f32) -> Self {
         Self([
             m00, m01, //
@@ -59,6 +63,14 @@ impl AffineTransform {
     }
 
     /// Creates a transform that performs a translation.
+    ///
+    /// $$
+    /// \begin{bmatrix}
+    /// 1 & 0 & \texttt{tx} \\\\
+    /// 0 & 1 & \texttt{ty} \\\\
+    /// 0 & 0 & 1
+    /// \end{bmatrix}
+    /// $$
     pub const fn translation(tx: f32, ty: f32) -> Self {
         Self([
             1.0, 0.0, //
@@ -68,6 +80,14 @@ impl AffineTransform {
     }
 
     /// Creates a transform that performs scaling.
+    ///
+    /// $$
+    /// \begin{bmatrix}
+    /// \texttt{sx} & 0 & 0 \\\\
+    /// 0 & \texttt{sy} & 0 \\\\
+    /// 0 & 0 & 1
+    /// \end{bmatrix}
+    /// $$
     pub const fn scaling(sx: f32, sy: f32) -> Self {
         Self([
             sx, 0.0, //
@@ -77,6 +97,14 @@ impl AffineTransform {
     }
 
     /// Creates a transform that performs a rotation.
+    ///
+    /// $$
+    /// \begin{bmatrix}
+    /// \text{cos}\ \theta & -\text{sin}\ \theta & 0 \\\\
+    /// \text{sin}\ \theta & \text{cos}\ \theta & 0 \\\\
+    /// 0 & 0 & 1
+    /// \end{bmatrix}
+    /// $$
     pub fn rotation(theta: f32) -> Self {
         let c = theta.cos();
         let s = theta.sin();
