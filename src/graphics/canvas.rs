@@ -43,6 +43,8 @@ impl Font {
     /// Load a font from raw TrueType bytes.
     pub fn load(raw: &[u8]) -> Result<Self, FontLoadError> {
         // It's unfortunate that we can't measure text without a TextContext, so each font will be loaded twice: once into this internal TextContext, and once into the canvas's TextContext.
+        //
+        // Additionally, we can't use a global TextContext because TextContext is !Sync :(
         let text_context = TextContext::default();
         let font_id = text_context.add_font_mem(raw).map_err(|_| FontLoadError)?;
         Ok(Self {
