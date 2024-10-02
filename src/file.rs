@@ -18,7 +18,7 @@ pub enum Error {
     Other(Box<dyn std::error::Error + Send + Sync>),
 }
 
-/// Read a file from the given path and return its bytes.
+/// Reads a file from the given path and return its bytes.
 ///
 /// On WASM, this will perform a HTTP GET request.
 pub async fn read(path: &str) -> Result<Vec<u8>, Error> {

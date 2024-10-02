@@ -17,7 +17,7 @@ impl AudioContext {
         })
     }
 
-    /// Start playing some audio.
+    /// Starts playing some audio.
     pub fn play(&mut self, source: StaticSoundData) {
         self.audio_manager.play(source).unwrap();
     }
