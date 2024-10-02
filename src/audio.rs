@@ -3,19 +3,31 @@
 pub use kira::sound::FromFileError;
 use kira::{
     manager::{AudioManager, AudioManagerSettings, DefaultBackend},
-    sound::{static_sound::StaticSoundData, EndPosition, PlaybackPosition, Region},
+    sound::{static_sound::StaticSoundData, EndPosition, PlaybackPosition},
 };
 
 /// A source of sound data.
 pub struct Source(StaticSoundData);
 
-/// A looping region of sound, in samples.
-pub struct LoopRegion {
+/// A region of sound, in samples.
+#[derive(Clone, Copy)]
+pub struct Region {
     /// Start position of the loop region, in samples.
-    pub start: u64,
+    pub start: usize,
 
     /// Length of the loop region, in samples.
-    pub length: u64,
+    pub length: usize,
+}
+
+impl From<Region> for kira::sound::Region {
+    fn from(value: Region) -> Self {
+        Self {
+            start: PlaybackPosition::Samples(value.start as usize),
+            end: EndPosition::Custom(PlaybackPosition::Samples(
+                (value.start + value.length) as usize,
+            )),
+        }
+    }
 }
 
 impl Source {
@@ -37,10 +49,12 @@ pub struct Sound<'a> {
     pub source: &'a Source,
 
     /// The region to loop infinitely, if any.
-    pub loop_region: Option<LoopRegion>,
+    pub loop_region: Option<Region>,
 
-    /// The position to start playback at, in samples.
-    pub start_position: u64,
+    /// The region to play.
+    ///
+    /// If [`Sound::loop_region`] is contained within the playback region, the playback will loop.
+    pub playback_region: Region,
 }
 
 impl<'a> Sound<'a> {
@@ -49,7 +63,10 @@ impl<'a> Sound<'a> {
         Self {
             source,
             loop_region: None,
-            start_position: 0,
+            playback_region: Region {
+                start: 0,
+                length: source.0.num_frames() as usize,
+            },
         }
     }
 }
@@ -68,18 +85,10 @@ impl AudioContext {
 
     /// Plays a sound.
     pub fn play(&mut self, sound: &Sound) {
-        let mut sound_data = sound
-            .source
-            .0
-            .start_position(PlaybackPosition::Samples(sound.start_position as usize));
+        let mut sound_data = sound.source.0.slice(Some(sound.playback_region.into()));
 
         if let Some(loop_region) = &sound.loop_region {
-            sound_data = sound_data.loop_region(Region {
-                start: PlaybackPosition::Samples(loop_region.start as usize),
-                end: EndPosition::Custom(PlaybackPosition::Samples(
-                    (loop_region.start + loop_region.length) as usize,
-                )),
-            })
+            sound_data = sound_data.loop_region(Some((*loop_region).into()));
         }
 
         self.audio_manager.play(sound_data).unwrap();
