@@ -21,6 +21,7 @@ use graphics::{Canvas, GraphicsState};
 use input::InputState;
 use std::time::Duration;
 use time::Instant;
+use winit::dpi::PhysicalSize;
 use winit::event::KeyEvent;
 use winit::keyboard::PhysicalKey;
 use winit::{
@@ -241,6 +242,12 @@ impl<'a> Window<'a> {
     /// Sets the title of the window.
     pub fn set_title(&self, title: &str) {
         self.0.set_title(title);
+    }
+
+    /// Requests the size of the window to be a given size.
+    pub fn set_size(&self, width: u32, height: u32, resizable: bool) {
+        self.0.set_resizable(resizable);
+        let _ = self.0.request_inner_size(PhysicalSize::new(width, height));
     }
 }
 
