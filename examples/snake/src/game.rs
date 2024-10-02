@@ -158,13 +158,12 @@ impl teenygame::Game for Game {
 
     fn draw(&mut self, canvas: &mut teenygame::graphics::Canvas) {
         let (width, height) = canvas.size();
+        canvas.clear_rect(0, 0, width, height, Color::new(0x00, 0x00, 0x00, 0xff));
 
         let mut canvas = canvas.transform(&AffineTransform::translation(
             (width as i32 / 2 - (BOARD_WIDTH * CELL_SIZE) as i32 / 2) as f32,
             (height as i32 / 2 - (BOARD_HEIGHT * CELL_SIZE) as i32 / 2) as f32,
         ));
-
-        canvas.clear_rect(0, 0, width, height, Color::new(0x00, 0x00, 0x00, 0xff));
 
         for (y, row) in self.board.iter().enumerate() {
             for (x, cell) in row.iter().enumerate() {
