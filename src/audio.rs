@@ -31,10 +31,10 @@ impl From<Region> for kira::sound::Region {
 }
 
 impl Source {
-    /// Reads sound data from a buffer.
+    /// Load sound data from raw bytes.
     ///
     /// This will also perform decoding, depending on what codecs are available. This uses [Symphonia](https://github.com/pdeljanov/Symphonia) internally.
-    pub fn from_raw(buf: &[u8]) -> Result<Self, FromFileError> {
+    pub fn load(buf: &[u8]) -> Result<Self, FromFileError> {
         Ok(Self(StaticSoundData::from_cursor(std::io::Cursor::new(
             buf.to_vec(),
         ))?))
