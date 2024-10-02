@@ -220,7 +220,7 @@ impl Texture {
     }
 
     /// Updates the data in the texture.
-    pub fn update(&self, src: ImgRef<Rgba<u8>>, x: usize, y: usize) {
+    pub fn update(&mut self, src: ImgRef<Rgba<u8>>, x: usize, y: usize) {
         // TODO: Check bounds.
         *self.pending_update.lock().unwrap() = Some(PendingTextureUpdate {
             buf: ImgVec::new(src.into_buf().to_vec(), src.width(), src.height()),
@@ -231,7 +231,7 @@ impl Texture {
 
     /// Creates a texture from existing image data.
     pub fn from_data(src: ImgRef<Rgba<u8>>) -> Self {
-        let img = Self::new_empty(src.width(), src.height());
+        let mut img = Self::new_empty(src.width(), src.height());
         img.update(src, 0, 0);
         img
     }
