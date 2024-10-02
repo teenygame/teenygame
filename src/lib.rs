@@ -231,7 +231,13 @@ where
             UserEvent::GraphicsState(gfx) => {
                 #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
                 let _guard = self.tokio_rt.enter();
-                self.game = Some(G::new(Window(&gfx.window)));
+                self.game = Some(G::new(&mut UpdateContext {
+                    input: &self.input_state,
+                    #[cfg(feature = "audio")]
+                    audio: &mut self.audio,
+                    canvas: &gfx.canvas,
+                    window: Window(&gfx.window),
+                }));
                 self.gfx = Some(gfx);
             }
         }
@@ -283,10 +289,10 @@ pub trait Game {
     /// Defaults to 60.
     const TICKS_PER_SECOND: u32 = 60;
 
-    /// Constructs your game.
+    /// Constructs the game.
     ///
     /// If Tokio support is enabled, the Tokio runtime will be available here.
-    fn new(window: Window) -> Self;
+    fn new(s: &mut UpdateContext) -> Self;
 
     /// Updates the game state [`Game::TICKS_PER_SECOND`] per second.
     ///

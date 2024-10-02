@@ -84,10 +84,8 @@ pub struct Sound<'a> {
     /// The region to loop infinitely, if any.
     pub loop_region: Option<Region>,
 
-    /// The region to play.
-    ///
-    /// If [`Sound::loop_region`] is contained within the playback region, the playback will loop.
-    pub playback_region: Region,
+    /// The start position to start playing at.
+    pub start_position: usize,
 }
 
 impl<'a> Sound<'a> {
@@ -96,10 +94,7 @@ impl<'a> Sound<'a> {
         Self {
             source,
             loop_region: None,
-            playback_region: Region {
-                start: 0,
-                length: source.0.num_frames() as usize,
-            },
+            start_position: 0,
         }
     }
 }
@@ -241,7 +236,7 @@ impl AudioContext {
         let mut sound_data = sound
             .source
             .0
-            .slice(Some(sound.playback_region.into_impl()));
+            .start_position(PlaybackPosition::Samples(sound.start_position));
 
         if let Some(loop_region) = &sound.loop_region {
             sound_data = sound_data.loop_region(Some((*loop_region).into_impl()));

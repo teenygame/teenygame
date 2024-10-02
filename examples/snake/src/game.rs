@@ -1,10 +1,10 @@
 use rand::prelude::IteratorRandom;
 use std::collections::VecDeque;
 use teenygame::{
-    audio::{Sound, Source},
+    audio::{PlaybackHandle, Region, Sound, Source},
     graphics::{AffineTransform, Align, Color, Font, Paint, Path, Stroke, TextStyle},
     input::KeyCode,
-    UpdateContext, Window,
+    UpdateContext,
 };
 
 const BOARD_WIDTH: usize = 40;
@@ -30,6 +30,7 @@ pub struct Game {
     font: Font,
     pickup_sfx: Source,
     game_over_sfx: Source,
+    bgm_handle: Option<PlaybackHandle>,
     game_over: bool,
     board: [[Cell; BOARD_WIDTH]; BOARD_HEIGHT],
     snake: VecDeque<(usize, usize)>,
@@ -59,9 +60,9 @@ impl Game {
 }
 
 impl teenygame::Game for Game {
-    fn new(window: Window) -> Self {
-        window.set_title("Snake");
-        window.set_size(
+    fn new(s: &mut UpdateContext) -> Self {
+        s.window.set_title("Snake");
+        s.window.set_size(
             (BOARD_WIDTH * CELL_SIZE) as u32,
             (BOARD_HEIGHT * CELL_SIZE) as u32,
             true,
@@ -74,10 +75,20 @@ impl teenygame::Game for Game {
             board[*y][*x] = Cell::Snake;
         }
 
+        let bgm_source = Source::load(include_bytes!("8BitCave.wav")).unwrap();
+
         let mut game = Self {
             font: Font::load(include_bytes!("PixelOperator.ttf"), 0).unwrap(),
             pickup_sfx: Source::load(include_bytes!("pickup.wav")).unwrap(),
             game_over_sfx: Source::load(include_bytes!("game_over.wav")).unwrap(),
+            bgm_handle: Some(s.audio.play(&Sound {
+                loop_region: Some(Region {
+                    start: 0,
+                    length: bgm_source.num_frames(),
+                }),
+                start_position: 5190,
+                ..Sound::new(&bgm_source)
+            })),
             game_over: false,
             board,
             snake,
@@ -150,6 +161,7 @@ impl teenygame::Game for Game {
             Cell::Snake => {
                 self.game_over = true;
                 s.audio.play(&Sound::new(&self.game_over_sfx)).detach();
+                self.bgm_handle.take();
             }
         }
         self.board[hy2][hx2] = Cell::Snake;
