@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 
 use rand::Rng;
 use teenygame::{
+    audio::{Sound, Source},
     graphics::{Align, Color, Font, Paint, Path, TextStyle},
     input::KeyCode,
     run,
@@ -28,6 +29,8 @@ const WEST: Direction = (-1, 0);
 
 struct Game {
     font: Font,
+    pickup_sfx: Source,
+    game_over_sfx: Source,
     game_over: bool,
     board: [[Cell; BOARD_WIDTH]; BOARD_HEIGHT],
     snake: VecDeque<(usize, usize)>,
@@ -69,6 +72,8 @@ impl teenygame::Game for Game {
 
         let mut game = Self {
             font: Font::load(include_bytes!("PixelOperator.ttf")),
+            pickup_sfx: Source::load(include_bytes!("pickup.wav")).unwrap(),
+            game_over_sfx: Source::load(include_bytes!("game_over.wav")).unwrap(),
             game_over: false,
             board,
             snake,
@@ -134,9 +139,11 @@ impl teenygame::Game for Game {
             Cell::Fruit => {
                 self.spawn_fruit();
                 self.speed = (self.speed * 49 / 50).max(1);
+                s.audio.play(&Sound::new(&self.pickup_sfx)).detach();
             }
             Cell::Snake => {
                 self.game_over = true;
+                s.audio.play(&Sound::new(&self.game_over_sfx)).detach();
             }
         }
         self.board[hy2][hx2] = Cell::Snake;

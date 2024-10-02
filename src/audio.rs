@@ -79,10 +79,20 @@ impl<'a> Sound<'a> {
 /// Handle for controlling playback of a currently playing song.
 ///
 /// Will stop playback when dropped.
-pub struct PlaybackHandle(StaticSoundHandle);
+pub struct PlaybackHandle(Option<StaticSoundHandle>);
+
+impl PlaybackHandle {
+    /// Detaches this playback such that it will continue playing.
+    pub fn detach(mut self) {
+        self.0 = None;
+    }
+}
 
 impl Drop for PlaybackHandle {
     fn drop(&mut self) {
+        if self.0.is_none() {
+            return;
+        }
         self.stop(Tween::default());
     }
 }
@@ -157,7 +167,7 @@ impl Default for Tween {
 
 impl PlaybackHandle {
     pub fn stop(&mut self, tween: Tween) {
-        self.0.stop(tween.into_impl());
+        self.0.as_mut().unwrap().stop(tween.into_impl());
     }
 }
 
@@ -184,6 +194,6 @@ impl AudioContext {
             sound_data = sound_data.loop_region(Some((*loop_region).into_impl()));
         }
 
-        PlaybackHandle(self.audio_manager.play(sound_data).unwrap())
+        PlaybackHandle(Some(self.audio_manager.play(sound_data).unwrap()))
     }
 }
