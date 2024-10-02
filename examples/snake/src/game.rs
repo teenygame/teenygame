@@ -196,21 +196,15 @@ impl teenygame::Game for Game {
             }
         }
 
-        canvas.stroke_path(
-            &Path::new().rect(
-                0.0,
-                0.0,
-                (BOARD_WIDTH * CELL_SIZE) as f32,
-                (BOARD_HEIGHT * CELL_SIZE) as f32,
-            ),
-            &Stroke {
-                width: 8.0,
-                ..Default::default()
+        canvas.fill_text(
+            16.0,
+            56.0,
+            format!("Score: {}", self.score),
+            &TextStyle {
+                align: Align::Left,
+                ..TextStyle::new(&self.font, 64.0)
             },
-            &Paint {
-                anti_alias: false,
-                ..Paint::color(Color::new(0xff, 0xff, 0xff, 0xff))
-            },
+            &Paint::color(Color::new(0xff, 0xff, 0xff, 0xff)),
         );
 
         if self.game_over {
@@ -228,5 +222,22 @@ impl teenygame::Game for Game {
                 &Paint::color(Color::new(0xff, 0x00, 0x00, 0xff)),
             );
         }
+
+        canvas.stroke_path(
+            &Path::new().rect(
+                0.0,
+                0.0,
+                (BOARD_WIDTH * CELL_SIZE) as f32,
+                (BOARD_HEIGHT * CELL_SIZE) as f32,
+            ),
+            &Stroke {
+                width: 8.0,
+                ..Default::default()
+            },
+            &Paint {
+                anti_alias: false,
+                ..Paint::color(Color::new(0xff, 0xff, 0xff, 0xff))
+            },
+        );
     }
 }
