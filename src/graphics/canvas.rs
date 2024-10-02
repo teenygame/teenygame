@@ -3,7 +3,7 @@
 pub use femtovg::imgref::ImgRef;
 use femtovg::{
     imgref::ImgVec, renderer::OpenGl, rgb::Rgba, FontId, ImageFlags, ImageId, PixelFormat,
-    Transform2D,
+    TextContext, Transform2D,
 };
 use std::{
     collections::HashMap,
@@ -19,12 +19,54 @@ pub(crate) enum FontInner {
 }
 
 /// A font that can be used to draw text.
-pub struct Font(pub(crate) Mutex<FontInner>);
+pub struct Font {
+    pub(crate) inner: Mutex<FontInner>,
+    text_context: TextContext,
+    internal_font_id: FontId,
+}
+
+pub struct TextMetrics {
+    pub width: f32,
+    pub height: f32,
+}
+
+/// Error for when font loading fails.
+#[derive(thiserror::Error, Debug)]
+#[error("font load error")]
+pub struct FontLoadError;
 
 impl Font {
     /// Load a font from raw TrueType bytes.
-    pub fn load(raw: &[u8]) -> Self {
-        Self(Mutex::new(FontInner::Pending(raw.to_vec())))
+    pub fn load(raw: &[u8]) -> Result<Self, FontLoadError> {
+        let text_context = TextContext::default();
+        let font_id = text_context.add_font_mem(raw).map_err(|_| FontLoadError)?;
+        Ok(Self {
+            inner: Mutex::new(FontInner::Pending(raw.to_vec())),
+            text_context,
+            internal_font_id: font_id,
+        })
+    }
+
+    pub fn measure_text(&self, text: impl AsRef<str>, style: &TextStyle) -> TextMetrics {
+        let metrics = self
+            .text_context
+            .measure_text(
+                0.0,
+                0.0,
+                text,
+                &femtovg::Paint::default()
+                    .with_font(&[self.internal_font_id])
+                    .with_font_size(style.size)
+                    .with_letter_spacing(style.letter_spacing)
+                    .with_text_baseline(style.baseline.into_impl())
+                    .with_text_align(style.align.into_impl()),
+            )
+            .unwrap();
+
+        TextMetrics {
+            width: metrics.width(),
+            height: metrics.height(),
+        }
     }
 }
 
@@ -221,7 +263,11 @@ impl Texture {
 
     /// Updates the data in the texture.
     pub fn update(&mut self, src: ImgRef<Rgba<u8>>, x: usize, y: usize) {
-        // TODO: Check bounds.
+        // NOTE: self doesn't really need to be mutable here, but it's more morally correct.
+        if x + src.width() > self.width || y + src.height() > self.height {
+            // TODO: Return an error.
+        }
+
         *self.pending_update.lock().unwrap() = Some(PendingTextureUpdate {
             buf: ImgVec::new(src.into_buf().to_vec(), src.width(), src.height()),
             x,
@@ -521,10 +567,10 @@ impl Canvas {
     }
 
     fn get_font_id(&mut self, font: &Font) -> FontId {
-        let mut inner = font.0.lock().unwrap();
+        let mut inner = font.inner.lock().unwrap();
         match &*inner {
             FontInner::Pending(vec) => {
-                // TODO: Don't panic!
+                // It is safe to unwrap here, because we've already parsed the font once before.
                 let font_id = self.inner.add_font_mem(&vec).unwrap();
                 *inner = FontInner::Loaded(font_id);
                 font_id
@@ -547,7 +593,6 @@ impl Canvas {
         let mut impl_paint = paint.to_impl();
         style.apply_to_paint(&mut impl_paint, self);
         stroke.apply_to_paint(&mut impl_paint);
-        // TODO: Don't panic!
         self.inner
             .stroke_text(x, y, text, &impl_paint.with_anti_alias(false))
             .unwrap();
@@ -565,7 +610,6 @@ impl Canvas {
         self.set_blend_mode(paint.blend_mode);
         let mut impl_paint = paint.to_impl();
         style.apply_to_paint(&mut impl_paint, self);
-        // TODO: Don't panic!
         self.inner
             .fill_text(x, y, text, &impl_paint.with_anti_alias(false))
             .unwrap();

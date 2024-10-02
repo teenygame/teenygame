@@ -74,7 +74,7 @@ impl teenygame::Game for Game {
         }
 
         let mut game = Self {
-            font: Font::load(include_bytes!("PixelOperator.ttf")),
+            font: Font::load(include_bytes!("PixelOperator.ttf")).unwrap(),
             pickup_sfx: Source::load(include_bytes!("pickup.wav")).unwrap(),
             game_over_sfx: Source::load(include_bytes!("game_over.wav")).unwrap(),
             game_over: false,
@@ -188,14 +188,17 @@ impl teenygame::Game for Game {
         }
 
         if self.game_over {
+            let style = TextStyle {
+                align: Align::Center,
+                ..TextStyle::new(&self.font, 128.0)
+            };
+            let metrics = self.font.measure_text("GAME OVER", &style);
+
             canvas.fill_text(
                 (width / 2) as f32,
-                (height / 2) as f32,
+                (height / 2) as f32 + metrics.height / 2.0,
                 "GAME OVER",
-                &TextStyle {
-                    align: Align::Center,
-                    ..TextStyle::new(&self.font, 128.0)
-                },
+                &style,
                 &Paint::color(Color::new(0xff, 0x00, 0x00, 0xff)),
             );
         }
