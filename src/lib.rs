@@ -10,14 +10,14 @@
 pub mod audio;
 pub mod file;
 pub mod futures;
-pub mod gfx;
+pub mod graphics;
 pub mod input;
 pub mod marker;
 pub mod time;
 
 #[cfg(feature = "audio")]
 use audio::AudioContext;
-use gfx::{Canvas, GraphicsState};
+use graphics::{Canvas, GraphicsState};
 use input::InputState;
 use std::time::Duration;
 use time::Instant;

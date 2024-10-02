@@ -1,6 +1,6 @@
 //! Nine-patch drawing.
 
-use super::drawing::{AffineTransform, BlendMode, Texture};
+use super::canvas::{AffineTransform, BlendMode, Texture};
 
 /// Represents a nine-patch and its margins.
 ///

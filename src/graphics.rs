@@ -1,16 +1,16 @@
 //! Graphics support.
 
-pub mod drawing;
+mod canvas;
 pub mod ninepatch;
 
 use std::rc::Rc;
 
-pub use drawing::Canvas;
+pub use canvas::*;
 use winit::{dpi::PhysicalSize, window::Window};
 
 pub(crate) struct GraphicsState {
     pub window: Rc<Window>,
-    pub canvas: drawing::Canvas,
+    pub canvas: canvas::Canvas,
 
     #[cfg(not(target_arch = "wasm32"))]
     gl: Option<Gl>,
