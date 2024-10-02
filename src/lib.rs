@@ -46,8 +46,7 @@ struct Application<G> {
     #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
     tokio_rt: tokio::runtime::Runtime,
 
-    current_draw_time: Instant,
-    draw_time_accumulator: Duration,
+    update_ticker: UpdateTicker,
 }
 
 impl<G> Application<G>
@@ -71,9 +70,39 @@ where
             #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
             tokio_rt,
 
+            update_ticker: UpdateTicker::new(G::TICKS_PER_SECOND),
+        }
+    }
+}
+
+struct UpdateTicker {
+    tick_interval: Duration,
+    current_draw_time: Instant,
+    draw_time_accumulator: Duration,
+}
+
+impl UpdateTicker {
+    fn new(ticks_per_second: u32) -> Self {
+        Self {
+            tick_interval: Duration::from_secs(1) / ticks_per_second as u32,
             current_draw_time: Instant::now(),
             draw_time_accumulator: Duration::ZERO,
         }
+    }
+
+    fn start_draw(&mut self) {
+        let new_redraw_time = Instant::now();
+        let frame_time = new_redraw_time - self.current_draw_time;
+        self.current_draw_time = new_redraw_time;
+        self.draw_time_accumulator += frame_time;
+    }
+
+    fn tick(&mut self) -> bool {
+        if self.draw_time_accumulator < self.tick_interval {
+            return false;
+        }
+        self.draw_time_accumulator -= self.tick_interval;
+        true
     }
 }
 
@@ -119,13 +148,8 @@ where
                     return;
                 };
 
-                let new_redraw_time = Instant::now();
-                let frame_time = new_redraw_time - self.current_draw_time;
-                self.current_draw_time = new_redraw_time;
-
-                self.draw_time_accumulator += frame_time;
-
-                while self.draw_time_accumulator >= G::TICK_TIME {
+                self.update_ticker.start_draw();
+                while self.update_ticker.tick() {
                     game.update(&mut UpdateContext {
                         input: &self.input_state,
                         #[cfg(feature = "audio")]
@@ -134,7 +158,6 @@ where
                         window: Window(&gfx.window),
                     });
                     self.input_state.update();
-                    self.draw_time_accumulator -= G::TICK_TIME;
                 }
 
                 game.draw(&mut gfx.canvas);
@@ -223,10 +246,10 @@ impl<'a> Window<'a> {
 
 /// Trait to implement for your game.
 pub trait Game {
-    /// How long the wait time between each call to [`Game::update`] should be.
+    /// How may times [`Game::update`] should be called per second.
     ///
-    /// Defaults to 60 ticks per second.
-    const TICK_TIME: Duration = Duration::from_millis(1000 / 60);
+    /// Defaults to 60.
+    const TICKS_PER_SECOND: u32 = 60;
 
     /// Constructs your game.
     ///
