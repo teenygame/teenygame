@@ -14,13 +14,35 @@ use kira::{
 /// A source of sound data.
 pub struct Source(StaticSoundData);
 
+impl Source {
+    /// Gets the sample rate.
+    pub fn sample_rate(&self) -> usize {
+        self.0.sample_rate as usize
+    }
+
+    /// Gets the number of frames.
+    pub fn num_frames(&self) -> usize {
+        self.0.num_frames()
+    }
+
+    /// Gets a duration in samples.
+    pub fn to_samples(&self, dur: Duration) -> usize {
+        self.sample_rate() * dur.as_secs() as usize
+    }
+
+    /// Gets the duration of the source.
+    pub fn duration(&self) -> Duration {
+        Duration::from_secs_f64(self.num_frames() as f64 / self.sample_rate() as f64)
+    }
+}
+
 /// A region of sound, in samples.
 #[derive(Clone, Copy)]
 pub struct Region {
-    /// Start position of the loop region, in samples.
+    /// Start position of the region, in samples.
     pub start: usize,
 
-    /// Length of the loop region, in samples.
+    /// Length of the region, in samples.
     pub length: usize,
 }
 
