@@ -75,7 +75,7 @@ impl teenygame::Game for Game {
         }
 
         let mut game = Self {
-            font: Font::load(include_bytes!("PixelOperator.ttf")).unwrap(),
+            font: Font::load(include_bytes!("PixelOperator.ttf"), 0).unwrap(),
             pickup_sfx: Source::load(include_bytes!("pickup.wav")).unwrap(),
             game_over_sfx: Source::load(include_bytes!("game_over.wav")).unwrap(),
             game_over: false,

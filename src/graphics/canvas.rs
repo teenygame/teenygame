@@ -52,8 +52,8 @@ pub use rustybuzz::ttf_parser::FaceParsingError;
 
 impl Font {
     /// Load a font from raw TrueType bytes.
-    pub fn load(raw: &[u8]) -> Result<Self, FaceParsingError> {
-        let face = Face::parse(raw, 0)?;
+    pub fn load(raw: &[u8], index: u32) -> Result<Self, FaceParsingError> {
+        let face = Face::parse(raw, index)?;
         Ok(Self {
             inner: Mutex::new(FontInner::Pending(raw.to_vec())),
             metrics: FontMetrics {
