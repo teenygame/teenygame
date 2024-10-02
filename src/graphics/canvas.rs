@@ -53,31 +53,6 @@ impl Font {
             internal_font_id: font_id,
         })
     }
-
-    fn measure_text(
-        &self,
-        text: impl AsRef<str>,
-        font_size: f32,
-        letter_spacing: f32,
-    ) -> TextMetrics {
-        let metrics = self
-            .text_context
-            .measure_text(
-                0.0,
-                0.0,
-                text,
-                &femtovg::Paint::default()
-                    .with_font(&[self.internal_font_id])
-                    .with_font_size(font_size)
-                    .with_letter_spacing(letter_spacing),
-            )
-            .unwrap();
-
-        TextMetrics {
-            width: metrics.width(),
-            height: metrics.height(),
-        }
-    }
 }
 
 /// A 3x2 transformation matrix representing an affine transform.
@@ -1091,7 +1066,26 @@ impl<'a> TextStyle<'a> {
 
     /// Measure the given text using the given style.
     pub fn measure_text(&self, text: impl AsRef<str>) -> TextMetrics {
-        self.font.measure_text(text, self.size, self.letter_spacing)
+        let metrics = self
+            .font
+            .text_context
+            .measure_text(
+                0.0,
+                0.0,
+                text,
+                &femtovg::Paint::default()
+                    .with_font(&[self.font.internal_font_id])
+                    .with_font_size(self.size)
+                    .with_letter_spacing(self.letter_spacing)
+                    .with_text_baseline(self.baseline.into_impl())
+                    .with_text_align(self.align.into_impl()),
+            )
+            .unwrap();
+
+        TextMetrics {
+            width: metrics.width(),
+            height: metrics.height(),
+        }
     }
 }
 
