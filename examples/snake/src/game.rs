@@ -2,7 +2,7 @@ use rand::prelude::IteratorRandom;
 use std::collections::VecDeque;
 use teenygame::{
     audio::{Sound, Source},
-    graphics::{Align, Color, Font, Paint, Path, TextStyle},
+    graphics::{AffineTransform, Align, Color, Font, Paint, Path, Stroke, TextStyle},
     input::KeyCode,
     UpdateContext, Window,
 };
@@ -10,7 +10,7 @@ use teenygame::{
 const BOARD_WIDTH: usize = 40;
 const BOARD_HEIGHT: usize = 22;
 
-const BLOCK_SIZE: usize = 64;
+const CELL_SIZE: usize = 64;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Cell {
@@ -62,9 +62,9 @@ impl teenygame::Game for Game {
     fn new(window: Window) -> Self {
         window.set_title("Snake");
         window.set_size(
-            (BOARD_WIDTH * BLOCK_SIZE) as u32,
-            (BOARD_HEIGHT * BLOCK_SIZE) as u32,
-            false,
+            (BOARD_WIDTH * CELL_SIZE) as u32,
+            (BOARD_HEIGHT * CELL_SIZE) as u32,
+            true,
         );
         let mut board = [[Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
         let snake = VecDeque::from([(BOARD_WIDTH / 2, BOARD_HEIGHT / 2)]);
@@ -155,6 +155,12 @@ impl teenygame::Game for Game {
 
     fn draw(&mut self, canvas: &mut teenygame::graphics::Canvas) {
         let (width, height) = canvas.size();
+
+        let mut canvas = canvas.transform(&AffineTransform::translation(
+            (width as i32 / 2 - (BOARD_WIDTH * CELL_SIZE) as i32 / 2) as f32,
+            (height as i32 / 2 - (BOARD_HEIGHT * CELL_SIZE) as i32 / 2) as f32,
+        ));
+
         canvas.clear_rect(0, 0, width, height, Color::new(0x00, 0x00, 0x00, 0xff));
 
         for (y, row) in self.board.iter().enumerate() {
@@ -164,10 +170,10 @@ impl teenygame::Game for Game {
                     Cell::Fruit => {
                         canvas.fill_path(
                             &Path::new().rect(
-                                (x * BLOCK_SIZE) as f32,
-                                (y * BLOCK_SIZE) as f32,
-                                BLOCK_SIZE as f32,
-                                BLOCK_SIZE as f32,
+                                (x * CELL_SIZE) as f32,
+                                (y * CELL_SIZE) as f32,
+                                CELL_SIZE as f32,
+                                CELL_SIZE as f32,
                             ),
                             &Paint::color(Color::new(0xff, 0x00, 0x00, 0xff)),
                         );
@@ -175,10 +181,10 @@ impl teenygame::Game for Game {
                     Cell::Snake => {
                         canvas.fill_path(
                             &Path::new().rect(
-                                (x * BLOCK_SIZE) as f32,
-                                (y * BLOCK_SIZE) as f32,
-                                BLOCK_SIZE as f32,
-                                BLOCK_SIZE as f32,
+                                (x * CELL_SIZE) as f32,
+                                (y * CELL_SIZE) as f32,
+                                CELL_SIZE as f32,
+                                CELL_SIZE as f32,
                             ),
                             &Paint::color(Color::new(0xff, 0xff, 0xff, 0xff)),
                         );
@@ -186,6 +192,23 @@ impl teenygame::Game for Game {
                 }
             }
         }
+
+        canvas.stroke_path(
+            &Path::new().rect(
+                0.0,
+                0.0,
+                (BOARD_WIDTH * CELL_SIZE) as f32,
+                (BOARD_HEIGHT * CELL_SIZE) as f32,
+            ),
+            &Stroke {
+                width: 8.0,
+                ..Default::default()
+            },
+            &Paint {
+                anti_alias: false,
+                ..Paint::color(Color::new(0xff, 0xff, 0xff, 0xff))
+            },
+        );
 
         if self.game_over {
             let style = TextStyle {
@@ -195,8 +218,8 @@ impl teenygame::Game for Game {
             let metrics = style.measure_text("GAME OVER");
 
             canvas.fill_text(
-                (width / 2) as f32,
-                (height / 2) as f32 + metrics.height / 2.0,
+                (BOARD_WIDTH * CELL_SIZE / 2) as f32,
+                (BOARD_HEIGHT * CELL_SIZE / 2) as f32 + metrics.height / 2.0,
                 "GAME OVER",
                 &style,
                 &Paint::color(Color::new(0xff, 0x00, 0x00, 0xff)),
