@@ -802,9 +802,13 @@ impl Default for BlendMode {
     }
 }
 
+/// Fill for the paint.
 #[derive(Clone)]
-enum PaintKind {
+pub enum Fill {
+    /// Solid color.
     Color(Color),
+
+    /// Linear gradient.
     LinearGradient {
         start_x: f32,
         start_y: f32,
@@ -812,6 +816,8 @@ enum PaintKind {
         end_y: f32,
         stops: Vec<(f32, Color)>,
     },
+
+    /// Radial gradient.
     RadialGradient {
         cx: f32,
         cy: f32,
@@ -824,7 +830,8 @@ enum PaintKind {
 /// Paint for filling paths.
 #[derive(Clone)]
 pub struct Paint {
-    kind: PaintKind,
+    /// The type of fill.
+    pub fill: Fill,
 
     /// The blend mode to paint with.
     pub blend_mode: BlendMode,
@@ -834,9 +841,9 @@ pub struct Paint {
 }
 
 impl Paint {
-    fn new(kind: PaintKind) -> Self {
+    fn new(fill: Fill) -> Self {
         Self {
-            kind,
+            fill,
             anti_alias: true,
             blend_mode: Default::default(),
         }
@@ -844,7 +851,7 @@ impl Paint {
 
     /// Creates a paint with a solid color.
     pub fn color(color: Color) -> Self {
-        Self::new(PaintKind::Color(color))
+        Self::new(Fill::Color(color))
     }
 
     /// Creates a paint with a linear gradient.
@@ -855,7 +862,7 @@ impl Paint {
         end_y: f32,
         stops: Vec<(f32, Color)>,
     ) -> Self {
-        Self::new(PaintKind::LinearGradient {
+        Self::new(Fill::LinearGradient {
             start_x,
             start_y,
             end_x,
@@ -872,7 +879,7 @@ impl Paint {
         out_radius: f32,
         stops: Vec<(f32, Color)>,
     ) -> Self {
-        Self::new(PaintKind::RadialGradient {
+        Self::new(Fill::RadialGradient {
             cx,
             cy,
             in_radius,
@@ -882,9 +889,9 @@ impl Paint {
     }
 
     fn to_impl(&self) -> femtovg::Paint {
-        let mut paint = match &self.kind {
-            PaintKind::Color(c) => femtovg::Paint::color(femtovg::Color::rgba(c.r, c.g, c.b, c.a)),
-            PaintKind::LinearGradient {
+        let mut paint = match &self.fill {
+            Fill::Color(c) => femtovg::Paint::color(femtovg::Color::rgba(c.r, c.g, c.b, c.a)),
+            Fill::LinearGradient {
                 start_x,
                 start_y,
                 end_x,
@@ -899,7 +906,7 @@ impl Paint {
                     .iter()
                     .map(|(t, c)| (*t, femtovg::Color::rgba(c.r, c.g, c.b, c.a))),
             ),
-            PaintKind::RadialGradient {
+            Fill::RadialGradient {
                 cx,
                 cy,
                 in_radius,
