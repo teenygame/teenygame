@@ -397,15 +397,13 @@ impl<'t, 'a> CanvasFramebufferGuard<'t, 'a> {
 
 impl<'t, 'a> Drop for CanvasFramebufferGuard<'t, 'a> {
     fn drop(&mut self) {
-        if let Some(fb) = &self.prev_fb {
-            self.canvas
-                .inner
-                .set_render_target(femtovg::RenderTarget::Image(*fb));
-        } else {
-            self.canvas
-                .inner
-                .set_render_target(femtovg::RenderTarget::Screen);
-        }
+        self.canvas
+            .inner
+            .set_render_target(if let Some(fb) = &self.prev_fb {
+                femtovg::RenderTarget::Image(*fb)
+            } else {
+                femtovg::RenderTarget::Screen
+            });
         self.canvas.framebuffer = self.prev_fb.take();
     }
 }
