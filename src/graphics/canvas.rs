@@ -25,6 +25,15 @@ pub struct Font {
     internal_font_id: FontId,
 }
 
+/// Metrics for a font.
+pub struct FontMetrics {
+    /// The recommended distance above the baseline.
+    pub ascent: f32,
+
+    /// The recommended distance below the baseline.
+    pub descent: f32,
+}
+
 /// Metrics for some measured text.
 pub struct TextMetrics {
     /// Width of the text.
@@ -52,6 +61,23 @@ impl Font {
             text_context,
             internal_font_id: font_id,
         })
+    }
+
+    /// Gets the metrics of the font.
+    pub fn metrics(&self, size: f32) -> FontMetrics {
+        let metrics = self
+            .text_context
+            .measure_font(
+                &femtovg::Paint::default()
+                    .with_font(&[self.internal_font_id])
+                    .with_font_size(size),
+            )
+            .unwrap();
+
+        FontMetrics {
+            ascent: metrics.ascender(),
+            descent: metrics.descender(),
+        }
     }
 }
 
