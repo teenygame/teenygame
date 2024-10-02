@@ -66,6 +66,7 @@ impl teenygame::Game for Game {
             (BOARD_HEIGHT * CELL_SIZE) as u32,
             true,
         );
+
         let mut board = [[Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
         let snake = VecDeque::from([(BOARD_WIDTH / 2, BOARD_HEIGHT / 2)]);
 
