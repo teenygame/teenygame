@@ -256,7 +256,7 @@ pub trait Game {
     /// If Tokio support is enabled, the Tokio runtime will be available here.
     fn new(window: Window) -> Self;
 
-    /// Updates the game state every interval of [`Game::TICK_TIME`].
+    /// Updates the game state [`Game::TICKS_PER_SECOND`] per second.
     ///
     /// This may be called multiple times between calls to [`Game::draw`], depending on the time elapsed. This implements the [fix your timestep](https://gafferongames.com/post/fix_your_timestep/) pattern internally.
     ///
