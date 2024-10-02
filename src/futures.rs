@@ -15,12 +15,21 @@ pub fn spawn(fut: impl Future<Output = ()> + MaybeSend + 'static) {
         return;
     }
 
+    #[cfg(all(not(target_arch = "wasm32"), feature = "smol"))]
+    {
+        smol::spawn(fut).detach();
+        return;
+    }
+
     #[cfg(target_arch = "wasm32")]
     {
         wasm_bindgen_futures::spawn_local(fut);
         return;
     }
 
-    _ = fut;
-    panic!("no executor available to spawn futures on!");
+    #[allow(unreachable_code)]
+    {
+        _ = fut;
+        panic!("no executor available to spawn futures on!");
+    }
 }

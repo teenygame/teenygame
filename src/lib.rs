@@ -6,6 +6,20 @@
 //!
 //! Mobile support might work but no promises!
 
+const _: () = assert!(
+    cfg!(not(all(feature = "smol", feature = "tokio"))),
+    "cannot enable both smol and tokio"
+);
+
+const _: () = assert!(
+    cfg!(any(
+        target_arch = "wasm32",
+        feature = "smol",
+        feature = "tokio"
+    )),
+    "must enable one of smol or tokio for non-wasm environments"
+);
+
 #[cfg(feature = "audio")]
 pub mod audio;
 pub mod file;
