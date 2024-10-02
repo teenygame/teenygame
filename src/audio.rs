@@ -30,9 +30,14 @@ impl Source {
         self.sample_rate() * dur.as_secs() as usize
     }
 
+    /// Gets a sample count as a duration.
+    pub fn to_duration(&self, n: usize) -> Duration {
+        Duration::from_secs_f64(n as f64 / self.sample_rate() as f64)
+    }
+
     /// Gets the duration of the source.
     pub fn duration(&self) -> Duration {
-        Duration::from_secs_f64(self.num_frames() as f64 / self.sample_rate() as f64)
+        self.to_duration(self.num_frames())
     }
 }
 
