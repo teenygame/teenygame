@@ -25,8 +25,12 @@ pub struct Font {
     internal_font_id: FontId,
 }
 
+/// Metrics for some measured text.
 pub struct TextMetrics {
+    /// Width of the text.
     pub width: f32,
+
+    /// Height of the text.
     pub height: f32,
 }
 
@@ -38,6 +42,7 @@ pub struct FontLoadError;
 impl Font {
     /// Load a font from raw TrueType bytes.
     pub fn load(raw: &[u8]) -> Result<Self, FontLoadError> {
+        // It's unfortunate that we can't measure text without a TextContext, so each font will be loaded twice: once into this internal TextContext, and once into the canvas's TextContext.
         let text_context = TextContext::default();
         let font_id = text_context.add_font_mem(raw).map_err(|_| FontLoadError)?;
         Ok(Self {
@@ -47,7 +52,12 @@ impl Font {
         })
     }
 
-    pub fn measure_text(&self, text: impl AsRef<str>, style: &TextStyle) -> TextMetrics {
+    fn measure_text(
+        &self,
+        text: impl AsRef<str>,
+        font_size: f32,
+        letter_spacing: f32,
+    ) -> TextMetrics {
         let metrics = self
             .text_context
             .measure_text(
@@ -56,10 +66,8 @@ impl Font {
                 text,
                 &femtovg::Paint::default()
                     .with_font(&[self.internal_font_id])
-                    .with_font_size(style.size)
-                    .with_letter_spacing(style.letter_spacing)
-                    .with_text_baseline(style.baseline.into_impl())
-                    .with_text_align(style.align.into_impl()),
+                    .with_font_size(font_size)
+                    .with_letter_spacing(letter_spacing),
             )
             .unwrap();
 
@@ -1077,6 +1085,11 @@ impl<'a> TextStyle<'a> {
             baseline: Default::default(),
             align: Default::default(),
         }
+    }
+
+    /// Measure the given text using the given style.
+    pub fn measure_text(&self, text: impl AsRef<str>) -> TextMetrics {
+        self.font.measure_text(text, self.size, self.letter_spacing)
     }
 }
 
