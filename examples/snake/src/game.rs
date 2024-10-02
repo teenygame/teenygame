@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::prelude::IteratorRandom;
 use std::collections::VecDeque;
 use teenygame::{
     audio::{Sound, Source},
@@ -42,15 +42,19 @@ pub struct Game {
 impl Game {
     fn spawn_fruit(&mut self) {
         let mut rng = rand::thread_rng();
-        loop {
-            let x = rng.gen_range(0..BOARD_WIDTH);
-            let y = rng.gen_range(0..BOARD_HEIGHT);
-            if self.board[y][x] != Cell::Empty {
-                continue;
-            }
-            self.board[y][x] = Cell::Fruit;
-            break;
-        }
+        let (x, y) = self
+            .board
+            .iter()
+            .enumerate()
+            .flat_map(|(y, row)| {
+                row.iter()
+                    .enumerate()
+                    .filter(|(_, cell)| **cell == Cell::Empty)
+                    .map(move |(x, _)| (x, y))
+            })
+            .choose(&mut rng)
+            .unwrap();
+        self.board[y][x] = Cell::Fruit;
     }
 }
 
