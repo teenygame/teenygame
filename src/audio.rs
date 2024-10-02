@@ -7,8 +7,9 @@ use kira::{
     manager::{AudioManager, AudioManagerSettings, DefaultBackend},
     sound::{
         static_sound::{StaticSoundData, StaticSoundHandle},
-        EndPosition, PlaybackPosition,
+        EndPosition, PlaybackPosition, PlaybackRate,
     },
+    Volume,
 };
 
 /// A source of sound data.
@@ -103,17 +104,10 @@ impl<'a> Sound<'a> {
     }
 }
 
-/// Handle for controlling playback of a currently playing song.
+/// Handle for controlling playback of a currently playing sound.
 ///
-/// Will stop playback when dropped.
+/// Will stop playback when dropped, unless detached.
 pub struct PlaybackHandle(Option<StaticSoundHandle>);
-
-impl PlaybackHandle {
-    /// Detaches this playback such that it will continue playing.
-    pub fn detach(mut self) {
-        self.0 = None;
-    }
-}
 
 impl Drop for PlaybackHandle {
     fn drop(&mut self) {
@@ -193,8 +187,40 @@ impl Default for Tween {
 }
 
 impl PlaybackHandle {
+    /// Stops playback.
     pub fn stop(&mut self, tween: Tween) {
         self.0.as_mut().unwrap().stop(tween.into_impl());
+    }
+
+    /// Set panning of the audio, where -1.0 is hard left and 1.0 is hard right.
+    pub fn set_panning(&mut self, panning: f64, tween: Tween) {
+        self.0
+            .as_mut()
+            .unwrap()
+            .set_panning((panning - 0.5) * 2.0, tween.into_impl());
+    }
+
+    /// Set volume of the audio, where the volume is the multiplier of the amplitude.
+    pub fn set_volume(&mut self, volume: f64, tween: Tween) {
+        self.0
+            .as_mut()
+            .unwrap()
+            .set_volume(Volume::Amplitude(volume), tween.into_impl());
+    }
+
+    /// Set speed of the audio, where the speed is the multiplier of the play speed.
+    pub fn set_speed(&mut self, speed: f64, tween: Tween) {
+        self.0
+            .as_mut()
+            .unwrap()
+            .set_playback_rate(PlaybackRate::Factor(speed), tween.into_impl());
+    }
+
+    /// Detaches this playback such that it will continue playing.
+    ///
+    /// Note that this consumes the handle and it will be lost after detaching.
+    pub fn detach(mut self) {
+        self.0 = None;
     }
 }
 
