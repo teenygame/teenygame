@@ -30,7 +30,7 @@ use input::InputState;
 use std::time::Duration;
 use time::Instant;
 use winit::dpi::PhysicalSize;
-use winit::event::KeyEvent;
+use winit::event::{KeyEvent, TouchPhase};
 use winit::keyboard::PhysicalKey;
 use winit::{
     application::ApplicationHandler,
@@ -204,6 +204,23 @@ where
             }
             WindowEvent::CursorLeft { .. } => {
                 self.input_state.mouse.set_position(None);
+            }
+            WindowEvent::Touch(touch) => {
+                match touch.phase {
+                    TouchPhase::Started => {
+                        self.input_state
+                            .touch
+                            .handle_touch_start(touch.id, touch.location);
+                    }
+                    TouchPhase::Moved => {
+                        self.input_state
+                            .touch
+                            .handle_touch_move(touch.id, touch.location);
+                    }
+                    TouchPhase::Ended | TouchPhase::Cancelled => {
+                        self.input_state.touch.handle_touch_end(touch.id);
+                    }
+                };
             }
             _ => {}
         };
