@@ -376,7 +376,7 @@ impl<'a> DerefMut for CanvasTransformGuard<'a> {
 pub struct CanvasFramebufferGuard<'t, 'a> {
     canvas: &'a mut Canvas,
     prev_fb: Option<ImageId>,
-    _phantom: PhantomData<&'t ()>,
+    _phantom: PhantomData<&'t Texture>,
 }
 
 impl<'t, 'a> CanvasFramebufferGuard<'t, 'a> {
