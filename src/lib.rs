@@ -1,10 +1,4 @@
-//! **teenygame** is a real simple multiplatform game framework for Rust. It currently supports the following platforms:
-//! - Windows
-//! - Linux
-//! - macOS
-//! - Web
-//!
-//! Mobile support might work but no promises!
+//! **teenygame** is a real simple multiplatform game framework for Rust.
 
 const _: () = assert!(
     cfg!(not(all(feature = "smol", feature = "tokio"))),
