@@ -1,6 +1,6 @@
 //! File-related utility functions.
 
-#[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
+#[cfg(not(target_arch = "wasm32"))]
 mod native;
 
 #[cfg(target_arch = "wasm32")]
@@ -22,13 +22,13 @@ pub enum Error {
 ///
 /// On WASM, this will perform a HTTP GET request.
 pub async fn read(path: &str) -> Result<Vec<u8>, Error> {
-    #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
+    #[cfg(not(target_arch = "wasm32"))]
     {
-        native::read(path).await
+        return native::read(path).await;
     }
 
     #[cfg(target_arch = "wasm32")]
     {
-        web::read(path).await
+        return web::read(path).await;
     }
 }

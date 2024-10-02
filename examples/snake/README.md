@@ -11,6 +11,5 @@ cargo run
 **Running on web:**
 
 ```sh
-wasm-pack build
-vite build
+wasm-pack build && vite build
 ```

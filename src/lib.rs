@@ -301,7 +301,7 @@ where
     #[cfg(not(target_arch = "wasm32"))]
     {
         env_logger::init();
-    };
+    }
 
     #[cfg(target_arch = "wasm32")]
     {

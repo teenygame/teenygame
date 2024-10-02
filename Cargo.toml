@@ -9,7 +9,7 @@ license = "LGPL-3.0-or-later"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["tokio", "audio"]
+default = ["audio"]
 tokio = ["dep:tokio"]
 audio = ["dep:kira"]
 
