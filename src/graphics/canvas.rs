@@ -810,19 +810,43 @@ pub enum Fill {
 
     /// Linear gradient.
     LinearGradient {
+        /// Start x position.
         start_x: f32,
+        /// Start y position.
         start_y: f32,
+        /// End x position.
         end_x: f32,
+        /// End y position.
         end_y: f32,
+        /// List of gradient stops, e.g.
+        /// ```
+        /// vec![
+        ///     (0.1, RED),
+        ///     (0.5, GREEN),
+        ///     (1.0, BLUE),
+        /// ]
+        /// ```
         stops: Vec<(f32, Color)>,
     },
 
     /// Radial gradient.
     RadialGradient {
+        /// Center x position.
         cx: f32,
+        /// Center y position.
         cy: f32,
+        /// Inner radius.
         in_radius: f32,
+        /// Outer radius.
         out_radius: f32,
+        /// List of gradient stops, e.g.
+        /// ```
+        /// vec![
+        ///     (0.1, RED),
+        ///     (0.5, GREEN),
+        ///     (1.0, BLUE),
+        /// ]
+        /// ```
         stops: Vec<(f32, Color)>,
     },
 }
@@ -841,7 +865,8 @@ pub struct Paint {
 }
 
 impl Paint {
-    fn new(fill: Fill) -> Self {
+    /// Creates a new paint with a fill.
+    pub fn new(fill: Fill) -> Self {
         Self {
             fill,
             anti_alias: true,
