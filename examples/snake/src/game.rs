@@ -131,7 +131,7 @@ impl teenygame::Game for Game {
             self.next_direction = SOUTH;
         }
 
-        let ticks_per_move = (15 / (self.score as f32 + 1.0).powf(0.25) as u32).max(1);
+        let ticks_per_move = ((15.0 / (self.score as f32 + 1.0).powf(0.25)) as u32).max(1);
 
         self.elapsed += 1;
         if self.elapsed < ticks_per_move {
@@ -156,6 +156,9 @@ impl teenygame::Game for Game {
             Cell::Fruit => {
                 self.spawn_fruit();
                 self.score += 1;
+                if let Some(handle) = &mut self.bgm_handle {
+                    handle.set_speed((self.score as f64 + 1.0).powf(0.02), Default::default());
+                }
                 s.audio.play(&Sound::new(&self.pickup_sfx)).detach();
             }
             Cell::Snake => {
