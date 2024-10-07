@@ -114,9 +114,10 @@ impl Drop for PlaybackHandle {
 }
 
 /// Easing motion of a tween.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub enum Easing {
     /// $f(x) = x$
+    #[default]
     Linear,
 
     /// $f(x) = x^k$
