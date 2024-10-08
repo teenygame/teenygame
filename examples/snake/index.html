@@ -58,22 +58,20 @@
                 />
             </svg>
         </button>
-        <script>
-            (async () => {
-                const { init } = await import("./pkg/snake.js");
+        <script type="module">
+            const { init } = await import("./pkg/snake.js");
 
-                const startButton = document.getElementById("start");
-                startButton.disabled = false;
-                startButton.onclick = () => {
-                    const canvas = document.createElement("canvas");
-                    canvas.id = "canvas";
-                    document.body.appendChild(canvas);
-                    document.body.removeChild(startButton);
-                    init();
-                };
+            const startButton = document.getElementById("start");
+            startButton.disabled = false;
+            startButton.onclick = () => {
+                const canvas = document.createElement("canvas");
+                canvas.id = "canvas";
+                document.body.appendChild(canvas);
+                document.body.removeChild(startButton);
+                init();
+            };
 
-                document.body.appendChild(startButton);
-            })();
+            document.body.appendChild(startButton);
         </script>
     </body>
 </html>
