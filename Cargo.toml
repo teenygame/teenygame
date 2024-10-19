@@ -22,7 +22,7 @@ thiserror = "1"
 serde = "1"
 kira = { version = "0.9.5", optional = true }
 wgpu = "22.1.0"
-canvasette = "0.1.0"
+canvasette = "0.4.1"
 image = { version = "0.25.2", default-features = false }
 imgref = "1.11.0"
 rgb = "0.8.50"

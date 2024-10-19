@@ -5,7 +5,7 @@ pub mod ninepatch;
 use std::sync::Arc;
 
 use canvasette::Renderer;
-pub use canvasette::{font, AffineTransform, PreparedText, Scene};
+pub use canvasette::{font, AffineTransform, PreparedText, Scene, TextureSlice};
 pub use imgref::ImgRef;
 use wgpu::util::DeviceExt;
 pub use wgpu::Texture;

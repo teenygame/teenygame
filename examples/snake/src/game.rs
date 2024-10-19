@@ -4,7 +4,7 @@ use teenygame::{
     audio::{PlaybackHandle, Region, Sound, Source},
     graphics::{
         font::{Attrs, Metrics},
-        AffineTransform, Color, Texture,
+        AffineTransform, Color, Texture, TextureSlice,
     },
     input::KeyCode,
     Context,
@@ -198,35 +198,23 @@ impl teenygame::Game for Game {
 
         for (y, row) in self.board.iter().enumerate() {
             for (x, cell) in row.iter().enumerate() {
-                match cell {
-                    None => {}
-                    Some(Cell::Fruit) => {
-                        scene.draw_sprite(
-                            &self.texture,
-                            1.0,
-                            0.0,
-                            1.0,
-                            1.0,
-                            (x * CELL_SIZE) as f32,
-                            (y * CELL_SIZE) as f32,
-                            CELL_SIZE as f32,
-                            CELL_SIZE as f32,
-                        );
-                    }
-                    Some(Cell::Snake) => {
-                        scene.draw_sprite(
-                            &self.texture,
-                            0.0,
-                            0.0,
-                            1.0,
-                            1.0,
-                            (x * CELL_SIZE) as f32,
-                            (y * CELL_SIZE) as f32,
-                            CELL_SIZE as f32,
-                            CELL_SIZE as f32,
-                        );
-                    }
-                }
+                scene.draw_sprite(
+                    match cell {
+                        None => {
+                            continue;
+                        }
+                        Some(Cell::Fruit) => {
+                            TextureSlice::from(&self.texture).slice(1, 0, 1, 1).unwrap()
+                        }
+                        Some(Cell::Snake) => {
+                            TextureSlice::from(&self.texture).slice(0, 0, 1, 1).unwrap()
+                        }
+                    },
+                    (x * CELL_SIZE) as i32,
+                    (y * CELL_SIZE) as i32,
+                    CELL_SIZE as u32,
+                    CELL_SIZE as u32,
+                );
             }
         }
 
@@ -256,48 +244,32 @@ impl teenygame::Game for Game {
 
         // Draw a border by using the 1x1 white pixel in our texture.
         scene.draw_sprite(
-            &self.texture,
-            0.0,
-            0.0,
-            1.0,
-            1.0,
-            -8.0,
-            -8.0,
-            (BOARD_WIDTH * CELL_SIZE + 12) as f32,
-            8.0,
+            TextureSlice::from(&self.texture).slice(0, 0, 1, 1).unwrap(),
+            -8,
+            -8,
+            (BOARD_WIDTH * CELL_SIZE + 12) as u32,
+            8,
         );
         scene.draw_sprite(
-            &self.texture,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-            -8.0,
-            (BOARD_HEIGHT * CELL_SIZE) as f32,
-            (BOARD_WIDTH * CELL_SIZE + 12) as f32,
-            8.0,
+            TextureSlice::from(&self.texture).slice(0, 0, 1, 1).unwrap(),
+            -8,
+            (BOARD_HEIGHT * CELL_SIZE) as i32,
+            (BOARD_WIDTH * CELL_SIZE + 12) as u32,
+            8,
         );
         scene.draw_sprite(
-            &self.texture,
-            0.0,
-            0.0,
-            1.0,
-            1.0,
-            -8.0,
-            -8.0,
-            8.0,
-            (BOARD_HEIGHT * CELL_SIZE + 12) as f32,
+            TextureSlice::from(&self.texture).slice(0, 0, 1, 1).unwrap(),
+            -8,
+            -8,
+            8,
+            (BOARD_HEIGHT * CELL_SIZE + 12) as u32,
         );
         scene.draw_sprite(
-            &self.texture,
-            0.0,
-            0.0,
-            1.0,
-            1.0,
-            (BOARD_WIDTH * CELL_SIZE) as f32,
-            -8.0,
-            8.0,
-            (BOARD_HEIGHT * CELL_SIZE + 12) as f32,
+            TextureSlice::from(&self.texture).slice(0, 0, 1, 1).unwrap(),
+            (BOARD_WIDTH * CELL_SIZE) as i32,
+            -8,
+            8,
+            (BOARD_HEIGHT * CELL_SIZE + 12) as u32,
         );
     }
 }
