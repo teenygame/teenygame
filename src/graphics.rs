@@ -25,6 +25,18 @@ pub struct Graphics {
     canvasette_renderer: Renderer,
 }
 
+/// A texture that can be rendered to.
+///
+/// Framebuffers may be created via [`Graphics::create_framebuffer`].
+pub struct Framebuffer(Texture);
+
+impl Framebuffer {
+    /// Gets the underlying texture, which may be used for sprite drawing.
+    pub fn texture(&self) -> &Texture {
+        &self.0
+    }
+}
+
 impl Graphics {
     #[allow(unused_variables, unused_mut)]
     pub(crate) async fn new(window: winit::window::Window) -> Self {
@@ -117,10 +129,10 @@ impl Graphics {
         Window(&self.window)
     }
 
-    /// Creates an empty texture that may be used as a framebuffer.
-    pub fn create_framebuffer(&self, size: [u32; 2]) -> Texture {
+    /// Creates an empty framebuffer texture.
+    pub fn create_framebuffer(&self, size: [u32; 2]) -> Framebuffer {
         let [width, height] = size;
-        self.device.create_texture(&wgpu::TextureDescriptor {
+        Framebuffer(self.device.create_texture(&wgpu::TextureDescriptor {
             label: None,
             size: wgpu::Extent3d {
                 width,
@@ -135,7 +147,7 @@ impl Graphics {
                 | wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
-        })
+        }))
     }
 
     /// Loads a texture.
@@ -163,8 +175,7 @@ impl Graphics {
         )
     }
 
-    /// Renders to a texture. Only textures created by [`Graphics::create_framebuffer`] can be rendered to.
-    pub fn render_to_texture(&mut self, scene: &Scene, texture: &wgpu::Texture) {
+    fn render_to_texture(&mut self, scene: &Scene, texture: &Texture) {
         let prepared = self
             .canvasette_renderer
             .prepare(&self.device, &self.queue, texture.size(), scene)
@@ -195,6 +206,11 @@ impl Graphics {
         }
 
         self.queue.submit(Some(encoder.finish()));
+    }
+
+    /// Renders to a framebuffer.
+    pub fn render_to_framebuffer(&mut self, scene: &Scene, framebuffer: &Framebuffer) {
+        self.render_to_texture(scene, framebuffer.texture());
     }
 
     pub(crate) fn render(&mut self, scene: &Scene) {
