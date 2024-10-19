@@ -2,9 +2,12 @@ use rand::prelude::IteratorRandom;
 use std::collections::VecDeque;
 use teenygame::{
     audio::{PlaybackHandle, Region, Sound, Source},
-    graphics::{AffineTransform, Align, Color, Font, Paint, Path, Stroke, TextStyle},
+    graphics::{
+        font::{Attrs, Metrics},
+        AffineTransform, Color, Texture,
+    },
     input::KeyCode,
-    UpdateContext,
+    Context,
 };
 
 const BOARD_WIDTH: usize = 40;
@@ -14,7 +17,6 @@ const CELL_SIZE: usize = 64;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Cell {
-    Empty,
     Fruit,
     Snake,
 }
@@ -27,12 +29,12 @@ const EAST: Direction = (1, 0);
 const WEST: Direction = (-1, 0);
 
 pub struct Game {
-    font: Font,
+    texture: Texture,
     pickup_sfx: Source,
     game_over_sfx: Source,
     bgm_handle: Option<PlaybackHandle>,
     game_over: bool,
-    board: [[Cell; BOARD_WIDTH]; BOARD_HEIGHT],
+    board: [[Option<Cell>; BOARD_WIDTH]; BOARD_HEIGHT],
     snake: VecDeque<(usize, usize)>,
     direction: Direction,
     next_direction: Direction,
@@ -50,38 +52,48 @@ impl Game {
             .flat_map(|(y, row)| {
                 row.iter()
                     .enumerate()
-                    .filter(|(_, cell)| **cell == Cell::Empty)
+                    .filter(|(_, cell)| cell.is_none())
                     .map(move |(x, _)| (x, y))
             })
             .choose(&mut rng)
             .unwrap();
-        self.board[y][x] = Cell::Fruit;
+        self.board[y][x] = Some(Cell::Fruit);
     }
 }
 
 impl teenygame::Game for Game {
-    fn new(s: &mut UpdateContext) -> Self {
-        s.window.set_title("Snake");
-        s.window.set_size(
+    fn new(ctxt: &mut Context) -> Self {
+        let window = ctxt.gfx.window();
+        window.set_title("Snake");
+        window.set_size(
             (BOARD_WIDTH * CELL_SIZE) as u32,
             (BOARD_HEIGHT * CELL_SIZE) as u32,
             true,
         );
 
-        let mut board = [[Cell::Empty; BOARD_WIDTH]; BOARD_HEIGHT];
+        let mut board = [[None; BOARD_WIDTH]; BOARD_HEIGHT];
         let snake = VecDeque::from([(BOARD_WIDTH / 2, BOARD_HEIGHT / 2)]);
 
         for (x, y) in snake.iter() {
-            board[*y][*x] = Cell::Snake;
+            board[*y][*x] = Some(Cell::Snake);
         }
+
+        ctxt.gfx.add_font(include_bytes!("PixelOperator.ttf"));
 
         let bgm_source = Source::load(include_bytes!("8BitCave.wav")).unwrap();
 
         let mut game = Self {
-            font: Font::load(include_bytes!("PixelOperator.ttf"), 0).unwrap(),
+            texture: ctxt.gfx.load_texture(teenygame::graphics::ImgRef::new(
+                &[
+                    Color::new(0xff, 0xff, 0xff, 0xff),
+                    Color::new(0xff, 0x00, 0x00, 0xff),
+                ],
+                2,
+                1,
+            )),
             pickup_sfx: Source::load(include_bytes!("pickup.wav")).unwrap(),
             game_over_sfx: Source::load(include_bytes!("game_over.wav")).unwrap(),
-            bgm_handle: Some(s.audio.play(&Sound {
+            bgm_handle: Some(ctxt.audio.play(&Sound {
                 loop_region: Some(Region {
                     start: 0,
                     length: bgm_source.num_frames(),
@@ -101,31 +113,31 @@ impl teenygame::Game for Game {
         game
     }
 
-    fn update(&mut self, s: &mut UpdateContext) {
+    fn update(&mut self, ctxt: &mut Context) {
         if self.game_over {
             return;
         }
 
-        if (s.input.keyboard.is_key_held(KeyCode::ArrowLeft)
-            || s.input.keyboard.is_key_held(KeyCode::KeyA))
+        if (ctxt.input.keyboard.is_key_held(KeyCode::ArrowLeft)
+            || ctxt.input.keyboard.is_key_held(KeyCode::KeyA))
             && self.direction != EAST
         {
             self.next_direction = WEST;
         }
-        if (s.input.keyboard.is_key_held(KeyCode::ArrowRight)
-            || s.input.keyboard.is_key_held(KeyCode::KeyD))
+        if (ctxt.input.keyboard.is_key_held(KeyCode::ArrowRight)
+            || ctxt.input.keyboard.is_key_held(KeyCode::KeyD))
             && self.direction != WEST
         {
             self.next_direction = EAST;
         }
-        if (s.input.keyboard.is_key_held(KeyCode::ArrowUp)
-            || s.input.keyboard.is_key_held(KeyCode::KeyW))
+        if (ctxt.input.keyboard.is_key_held(KeyCode::ArrowUp)
+            || ctxt.input.keyboard.is_key_held(KeyCode::KeyW))
             && self.direction != SOUTH
         {
             self.next_direction = NORTH;
         }
-        if (s.input.keyboard.is_key_held(KeyCode::ArrowDown)
-            || s.input.keyboard.is_key_held(KeyCode::KeyS))
+        if (ctxt.input.keyboard.is_key_held(KeyCode::ArrowDown)
+            || ctxt.input.keyboard.is_key_held(KeyCode::KeyS))
             && self.direction != NORTH
         {
             self.next_direction = SOUTH;
@@ -149,33 +161,37 @@ impl teenygame::Game for Game {
         self.snake.push_back((hx2, hy2));
 
         match self.board[hy2][hx2] {
-            Cell::Empty => {
+            None => {
                 let (ohx, ohy) = self.snake.pop_front().unwrap();
-                self.board[ohy][ohx] = Cell::Empty;
+                self.board[ohy][ohx] = None;
             }
-            Cell::Fruit => {
+            Some(Cell::Fruit) => {
                 self.spawn_fruit();
                 self.score += 1;
                 if let Some(handle) = &mut self.bgm_handle {
                     handle.set_speed((self.score as f64 + 1.0).powf(0.02), Default::default());
                 }
-                s.audio.play(&Sound::new(&self.pickup_sfx)).detach();
+                ctxt.audio.play(&Sound::new(&self.pickup_sfx)).detach();
             }
-            Cell::Snake => {
+            Some(Cell::Snake) => {
                 self.game_over = true;
-                s.audio.play(&Sound::new(&self.game_over_sfx)).detach();
+                ctxt.audio.play(&Sound::new(&self.game_over_sfx)).detach();
                 self.bgm_handle.take();
             }
         }
-        self.board[hy2][hx2] = Cell::Snake;
+        self.board[hy2][hx2] = Some(Cell::Snake);
         self.elapsed = 0;
     }
 
-    fn draw(&mut self, canvas: &mut teenygame::graphics::Canvas) {
-        let (width, height) = canvas.size();
-        canvas.clear_rect(0, 0, width, height, Color::new(0x00, 0x00, 0x00, 0xff));
+    fn draw<'a>(
+        &'a mut self,
+        ctxt: &mut teenygame::Context,
+        scene: &mut teenygame::graphics::Scene<'a>,
+    ) {
+        let window = ctxt.gfx.window();
+        let [width, height] = window.size();
 
-        let mut canvas = canvas.transform(&AffineTransform::translation(
+        let scene = scene.add_child(AffineTransform::translation(
             (width as i32 / 2 - (BOARD_WIDTH * CELL_SIZE) as i32 / 2) as f32,
             (height as i32 / 2 - (BOARD_HEIGHT * CELL_SIZE) as i32 / 2) as f32,
         ));
@@ -183,75 +199,105 @@ impl teenygame::Game for Game {
         for (y, row) in self.board.iter().enumerate() {
             for (x, cell) in row.iter().enumerate() {
                 match cell {
-                    Cell::Empty => {}
-                    Cell::Fruit => {
-                        canvas.fill_path(
-                            &Path::new().rect(
-                                (x * CELL_SIZE) as f32,
-                                (y * CELL_SIZE) as f32,
-                                CELL_SIZE as f32,
-                                CELL_SIZE as f32,
-                            ),
-                            &Paint::color(Color::new(0xff, 0x00, 0x00, 0xff)),
+                    None => {}
+                    Some(Cell::Fruit) => {
+                        scene.draw_sprite(
+                            &self.texture,
+                            1.0,
+                            0.0,
+                            1.0,
+                            1.0,
+                            (x * CELL_SIZE) as f32,
+                            (y * CELL_SIZE) as f32,
+                            CELL_SIZE as f32,
+                            CELL_SIZE as f32,
                         );
                     }
-                    Cell::Snake => {
-                        canvas.fill_path(
-                            &Path::new().rect(
-                                (x * CELL_SIZE) as f32,
-                                (y * CELL_SIZE) as f32,
-                                CELL_SIZE as f32,
-                                CELL_SIZE as f32,
-                            ),
-                            &Paint::color(Color::new(0xff, 0xff, 0xff, 0xff)),
+                    Some(Cell::Snake) => {
+                        scene.draw_sprite(
+                            &self.texture,
+                            0.0,
+                            0.0,
+                            1.0,
+                            1.0,
+                            (x * CELL_SIZE) as f32,
+                            (y * CELL_SIZE) as f32,
+                            CELL_SIZE as f32,
+                            CELL_SIZE as f32,
                         );
                     }
                 }
             }
         }
 
-        canvas.fill_text(
+        scene.draw_text(
+            ctxt.gfx.prepare_text(
+                format!("Score: {}", self.score),
+                Metrics::relative(64.0, 1.0),
+                Attrs::default(),
+            ),
             16.0,
             56.0,
-            format!("Score: {}", self.score),
-            &TextStyle {
-                align: Align::Left,
-                ..TextStyle::new(&self.font, 64.0)
-            },
-            &Paint::color(Color::new(0xff, 0xff, 0xff, 0xff)),
+            Color::new(0xff, 0xff, 0xff, 0xff),
         );
 
         if self.game_over {
-            let style = TextStyle {
-                align: Align::Center,
-                ..TextStyle::new(&self.font, 128.0)
-            };
-            let metrics = canvas.measure_text("GAME OVER", &style);
-
-            canvas.fill_text(
-                (BOARD_WIDTH * CELL_SIZE / 2) as f32,
-                (BOARD_HEIGHT * CELL_SIZE / 2) as f32 + metrics.height / 2.0,
-                "GAME OVER",
-                &style,
-                &Paint::color(Color::new(0xff, 0x00, 0x00, 0xff)),
+            let prepared_game_over =
+                ctxt.gfx
+                    .prepare_text("GAME OVER", Metrics::relative(128.0, 1.0), Attrs::default());
+            let [w, h] = prepared_game_over.bounding_box();
+            scene.draw_text(
+                prepared_game_over,
+                (BOARD_WIDTH * CELL_SIZE / 2) as f32 - w / 2.0,
+                (BOARD_HEIGHT * CELL_SIZE / 2) as f32 + h / 2.0,
+                Color::new(0xff, 0x00, 0x00, 0xff),
             );
         }
 
-        canvas.stroke_path(
-            &Path::new().rect(
-                0.0,
-                0.0,
-                (BOARD_WIDTH * CELL_SIZE) as f32,
-                (BOARD_HEIGHT * CELL_SIZE) as f32,
-            ),
-            &Stroke {
-                width: 8.0,
-                ..Default::default()
-            },
-            &Paint {
-                anti_alias: false,
-                ..Paint::color(Color::new(0xff, 0xff, 0xff, 0xff))
-            },
+        // Draw a border by using the 1x1 white pixel in our texture.
+        scene.draw_sprite(
+            &self.texture,
+            0.0,
+            0.0,
+            1.0,
+            1.0,
+            -8.0,
+            -8.0,
+            (BOARD_WIDTH * CELL_SIZE + 12) as f32,
+            8.0,
+        );
+        scene.draw_sprite(
+            &self.texture,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            -8.0,
+            (BOARD_HEIGHT * CELL_SIZE) as f32,
+            (BOARD_WIDTH * CELL_SIZE + 12) as f32,
+            8.0,
+        );
+        scene.draw_sprite(
+            &self.texture,
+            0.0,
+            0.0,
+            1.0,
+            1.0,
+            -8.0,
+            -8.0,
+            8.0,
+            (BOARD_HEIGHT * CELL_SIZE + 12) as f32,
+        );
+        scene.draw_sprite(
+            &self.texture,
+            0.0,
+            0.0,
+            1.0,
+            1.0,
+            (BOARD_WIDTH * CELL_SIZE) as f32,
+            -8.0,
+            8.0,
+            (BOARD_HEIGHT * CELL_SIZE + 12) as f32,
         );
     }
 }

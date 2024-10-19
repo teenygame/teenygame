@@ -1,228 +1,236 @@
 //! Graphics support.
 
-mod canvas;
 pub mod ninepatch;
 
-use std::rc::Rc;
+use std::sync::Arc;
 
-pub use canvas::*;
-use winit::{dpi::PhysicalSize, window::Window};
+use canvasette::Renderer;
+pub use canvasette::{font, AffineTransform, PreparedText, Scene};
+pub use imgref::ImgRef;
+use wgpu::util::DeviceExt;
+pub use wgpu::Texture;
+use winit::dpi::PhysicalSize;
 
-pub(crate) struct GraphicsState {
-    pub window: Rc<Window>,
-    pub canvas: canvas::Canvas,
+/// An 8-bit RGBA color.
+pub type Color = rgb::Rgba<u8>;
 
-    #[cfg(not(target_arch = "wasm32"))]
-    gl: Option<Gl>,
+/// Encapsulates graphics device and rendering state.
+pub struct Graphics {
+    window: Arc<winit::window::Window>,
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    adapter: wgpu::Adapter,
+    surface: wgpu::Surface<'static>,
+    surface_config: wgpu::SurfaceConfiguration,
+    canvasette_renderer: Renderer,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-struct Gl {
-    context: glutin::context::PossiblyCurrentContext,
-    surface: glutin::surface::Surface<glutin::surface::WindowSurface>,
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn create_gl_context(
-    window: &Window,
-    gl_config: &glutin::config::Config,
-) -> glutin::context::NotCurrentContext {
-    use glutin::display::GetGlDisplay;
-    use glutin::prelude::*;
-    use raw_window_handle::HasWindowHandle;
-
-    let raw_window_handle = window.window_handle().ok().map(|wh| wh.as_raw());
-
-    let context_attributes =
-        glutin::context::ContextAttributesBuilder::new().build(raw_window_handle);
-
-    let fallback_context_attributes = glutin::context::ContextAttributesBuilder::new()
-        .with_context_api(glutin::context::ContextApi::Gles(None))
-        .build(raw_window_handle);
-
-    let legacy_context_attributes = glutin::context::ContextAttributesBuilder::new()
-        .with_context_api(glutin::context::ContextApi::OpenGl(Some(
-            glutin::context::Version::new(2, 1),
-        )))
-        .build(raw_window_handle);
-
-    let gl_display = gl_config.display();
-
-    unsafe {
-        gl_display
-            .create_context(gl_config, &context_attributes)
-            .unwrap_or_else(|_| {
-                gl_display
-                    .create_context(gl_config, &fallback_context_attributes)
-                    .unwrap_or_else(|_| {
-                        gl_display
-                            .create_context(gl_config, &legacy_context_attributes)
-                            .expect("failed to create context")
-                    })
-            })
-    }
-}
-
-impl GraphicsState {
+impl Graphics {
     #[allow(unused_variables, unused_mut)]
-    pub fn new(mut gfx: Option<Self>, event_loop: &winit::event_loop::ActiveEventLoop) -> Self {
-        let mut window_attrs = Window::default_attributes().with_title("");
+    pub(crate) async fn new(window: winit::window::Window) -> Self {
+        let window = Arc::new(window);
 
-        #[cfg(target_arch = "wasm32")]
-        let (window, renderer) = {
-            use wasm_bindgen::JsCast;
-            use winit::platform::web::WindowAttributesExtWebSys;
+        let instance = wgpu::Instance::default();
 
-            let canvas = web_sys::window()
-                .unwrap()
-                .document()
-                .unwrap()
-                .get_element_by_id("canvas")
-                .unwrap()
-                .dyn_into::<web_sys::HtmlCanvasElement>()
-                .unwrap();
+        let surface = instance.create_surface(window.clone()).unwrap();
 
-            let renderer = femtovg::renderer::OpenGl::new_from_html_canvas(&canvas).unwrap();
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                compatible_surface: Some(&surface),
+                ..Default::default()
+            })
+            .await
+            .expect("Failed to find an appropriate adapter");
 
-            window_attrs = window_attrs.with_canvas(Some(canvas));
-
-            let window = event_loop
-                .create_window(window_attrs)
-                .expect("failed to create window");
-
-            (window, renderer)
-        };
-
-        #[cfg(not(target_arch = "wasm32"))]
-        let (window, renderer, gl_graphics) = {
-            use glutin::config::GetGlConfig;
-            use glutin::display::GetGlDisplay;
-            use glutin::prelude::*;
-            use glutin_winit::GlWindow;
-            use winit::dpi::LogicalSize;
-
-            let (window, gl_context) = if let Some(mut gfx) = gfx.take() {
-                let gl = gfx.gl.take().unwrap();
-                (
-                    glutin_winit::finalize_window(event_loop, window_attrs, &gl.context.config())
-                        .unwrap(),
-                    gl.context,
-                )
-            } else {
-                let display_builder =
-                    glutin_winit::DisplayBuilder::new().with_window_attributes(Some(window_attrs));
-                let (window, gl_config) = display_builder
-                    .build(
-                        event_loop,
-                        glutin::config::ConfigTemplateBuilder::new().with_alpha_size(8),
-                        |mut configs| configs.next().unwrap(),
-                    )
-                    .unwrap();
-                let window = window.unwrap();
-
-                let gl_context = create_gl_context(&window, &gl_config).treat_as_possibly_current();
-
-                (window, gl_context)
-            };
-
-            let _ = window.request_inner_size(LogicalSize::new(1280, 720));
-
-            let gl_config = gl_context.config();
-            let gl_display = gl_config.display();
-
-            let attrs = window
-                .build_surface_attributes(glutin::surface::SurfaceAttributesBuilder::new())
-                .expect("Failed to build surface attributes");
-            let gl_surface = unsafe {
-                gl_display
-                    .create_window_surface(&gl_config, &attrs)
-                    .unwrap()
-            };
-
-            gl_context.make_current(&gl_surface).unwrap();
-
-            let renderer = unsafe {
-                femtovg::renderer::OpenGl::new_from_function_cstr(|s| {
-                    gl_display.get_proc_address(s) as *const _
-                })
-            }
-            .unwrap();
-
-            (
-                window,
-                renderer,
-                Gl {
-                    context: gl_context,
-                    surface: gl_surface,
+        let (device, queue) = adapter
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    required_limits: wgpu::Limits::downlevel_webgl2_defaults()
+                        .using_resolution(adapter.limits()),
+                    required_features: wgpu::Features::default(),
+                    ..Default::default()
                 },
+                None,
             )
-        };
+            .await
+            .expect("Failed to create device");
 
-        let mut canvas = Canvas::new(femtovg::Canvas::new(renderer).unwrap());
+        let mut size = window.inner_size();
+        size.width = size.width.max(1);
+        size.height = size.height.max(1);
 
-        let dpi = window.scale_factor();
-        let size = window.inner_size();
-        canvas.set_size(size.width, size.height, dpi as f32);
+        let mut surface_config = surface
+            .get_default_config(&adapter, size.width, size.height)
+            .unwrap();
+        surface_config.present_mode = wgpu::PresentMode::AutoVsync;
+        surface.configure(&device, &surface_config);
+
+        let canvasette_renderer =
+            Renderer::new(&device, surface.get_capabilities(&adapter).formats[0]);
 
         window.request_redraw();
 
         Self {
-            window: Rc::new(window),
-            canvas,
-            #[cfg(not(target_arch = "wasm32"))]
-            gl: Some(gl_graphics),
+            window,
+            device,
+            queue,
+            adapter,
+            surface,
+            surface_config,
+            canvasette_renderer,
         }
     }
 
-    pub fn resize(&mut self, size: PhysicalSize<u32>) {
-        #[cfg(target_arch = "wasm32")]
-        {
-            use winit::platform::web::WindowExtWebSys;
-            let canvas = self.window.canvas().unwrap();
-            canvas.set_width(size.width);
-            canvas.set_height(size.height);
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            use glutin::surface::GlSurface;
-            let Gl { context, surface } = self.gl.as_ref().unwrap();
-            surface.resize(
-                context,
-                std::num::NonZero::new(size.width).unwrap(),
-                std::num::NonZero::new(size.height).unwrap(),
-            );
-        }
-
-        {
-            let dpi = self.window.scale_factor();
-            self.canvas.set_size(size.width, size.height, dpi as f32);
-        }
+    pub(crate) fn resize(&mut self, size: PhysicalSize<u32>) {
+        self.surface_config.width = size.width.max(1);
+        self.surface_config.height = size.height.max(1);
+        self.surface.configure(&self.device, &self.surface_config);
+        self.window.request_redraw();
     }
 
-    pub fn flush_and_swap_buffers(&mut self) {
-        self.canvas.flush();
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            use glutin::surface::GlSurface;
-            let Gl { context, surface } = self.gl.as_ref().unwrap();
-            surface.swap_buffers(context).unwrap();
-        }
+    pub(crate) fn get_current_frame(&self) -> Result<wgpu::SurfaceTexture, wgpu::SurfaceError> {
+        self.surface.get_current_texture()
     }
 
-    pub fn suspend(&mut self) {
-        #[cfg(not(target_arch = "wasm32"))]
+    fn surface_format(&self) -> wgpu::TextureFormat {
+        self.surface.get_capabilities(&self.adapter).formats[0]
+    }
+
+    /// Adds a font.
+    pub fn add_font(&mut self, font: &[u8]) {
+        self.canvasette_renderer.add_font(font);
+    }
+
+    /// Prepares text for rendering.
+    pub fn prepare_text(
+        &mut self,
+        contents: impl AsRef<str>,
+        metrics: font::Metrics,
+        attrs: font::Attrs,
+    ) -> PreparedText {
+        self.canvasette_renderer
+            .prepare_text(contents, metrics, attrs)
+    }
+
+    /// Retrieve the underlying window.
+    pub fn window(&self) -> Window {
+        Window(&self.window)
+    }
+
+    /// Creates an empty texture that may be used as a framebuffer.
+    pub fn create_framebuffer(&self, size: [u32; 2]) -> Texture {
+        let [width, height] = size;
+        self.device.create_texture(&wgpu::TextureDescriptor {
+            label: None,
+            size: wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: self.surface_format(),
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        })
+    }
+
+    /// Loads a texture.
+    pub fn load_texture(&self, img: ImgRef<Color>) -> Texture {
+        let (buf, width, height) = img.to_contiguous_buf();
+
+        self.device.create_texture_with_data(
+            &self.queue,
+            &wgpu::TextureDescriptor {
+                label: None,
+                size: wgpu::Extent3d {
+                    width: width as u32,
+                    height: height as u32,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                view_formats: &[],
+            },
+            wgpu::util::TextureDataOrder::default(),
+            &bytemuck::cast_slice(&buf),
+        )
+    }
+
+    /// Renders to a texture. Only textures created by [`Graphics::create_framebuffer`] can be rendered to.
+    pub fn render_to_texture(&mut self, scene: &Scene, texture: &wgpu::Texture) {
+        let prepared = self
+            .canvasette_renderer
+            .prepare(&self.device, &self.queue, texture.size(), scene)
+            .unwrap();
+
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+
         {
-            use glutin::prelude::{NotCurrentGlContext, PossiblyCurrentGlContext};
-            let Gl { context, surface } = self.gl.take().unwrap();
-            self.gl = Some(Gl {
-                context: context
-                    .make_not_current()
-                    .unwrap()
-                    .treat_as_possibly_current(),
-                surface,
+            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &texture.create_view(&wgpu::TextureViewDescriptor::default()),
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 0.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                ..Default::default()
             });
+            self.canvasette_renderer.render(&mut rpass, &prepared);
         }
+
+        self.queue.submit(Some(encoder.finish()));
+    }
+
+    pub(crate) fn render(&mut self, scene: &Scene) {
+        let frame = self
+            .get_current_frame()
+            .expect("failed to acquire next swap chain texture");
+        self.render_to_texture(&scene, &frame.texture);
+        self.window.pre_present_notify();
+        frame.present();
+        self.window.request_redraw();
+    }
+}
+
+/// Window.
+pub struct Window<'a>(&'a winit::window::Window);
+
+impl<'a> Window<'a> {
+    /// Sets the title of the window.
+    pub fn set_title(&self, title: &str) {
+        self.0.set_title(title);
+    }
+
+    /// Requests the size of the window to be a given size.
+    pub fn set_size(&self, width: u32, height: u32, resizable: bool) {
+        self.0.set_resizable(resizable);
+        let _ = self.0.request_inner_size(PhysicalSize::new(width, height));
+    }
+
+    /// Gets the current size of the window.
+    pub fn size(&self) -> [u32; 2] {
+        let size = self.0.inner_size();
+        [size.width, size.height]
+    }
+
+    /// Gets the scale factor of the window.
+    pub fn scale_factor(&self) -> f64 {
+        self.0.scale_factor()
     }
 }

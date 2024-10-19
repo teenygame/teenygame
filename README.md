@@ -16,8 +16,7 @@ Note that there is no support for 3D graphics.
 - macOS
 - Windows
 - Web
-
-iOS is not supported due to lack of OpenGL support in Glutin. Android may or may not be supported but will require some legwork to figure this out.
+- iOS
 
 ## Examples
 

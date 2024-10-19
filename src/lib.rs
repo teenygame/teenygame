@@ -25,11 +25,11 @@ pub mod time;
 
 #[cfg(feature = "audio")]
 use audio::AudioContext;
-use graphics::{Canvas, GraphicsState};
+use canvasette::Scene;
+pub use graphics::Graphics;
 use input::InputState;
 use std::time::Duration;
 use time::Instant;
-use winit::dpi::PhysicalSize;
 use winit::event::{KeyEvent, TouchPhase};
 use winit::keyboard::PhysicalKey;
 use winit::{
@@ -39,14 +39,14 @@ use winit::{
 };
 
 enum UserEvent {
-    GraphicsState(GraphicsState),
+    GraphicsState(Graphics),
 }
 
 struct Application<G> {
     #[cfg(feature = "audio")]
     audio: AudioContext,
 
-    gfx: Option<GraphicsState>,
+    gfx: Option<Graphics>,
 
     event_loop_proxy: EventLoopProxy<UserEvent>,
     input_state: InputState,
@@ -120,18 +120,37 @@ where
     G: Game,
 {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        let gfx = GraphicsState::new(self.gfx.take(), event_loop);
+        #[allow(unused_mut)]
+        let mut window_attrs = winit::window::Window::default_attributes().with_title("");
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            use wasm_bindgen::JsCast;
+            use winit::platform::web::WindowAttributesExtWebSys;
+
+            let canvas = web_sys::window()
+                .unwrap()
+                .document()
+                .unwrap()
+                .get_element_by_id("canvas")
+                .unwrap()
+                .dyn_into::<web_sys::HtmlCanvasElement>()
+                .unwrap();
+
+            window_attrs = window_attrs.with_canvas(Some(canvas));
+        }
+
+        let window = event_loop
+            .create_window(window_attrs)
+            .expect("failed to create window");
 
         let event_loop_proxy = self.event_loop_proxy.clone();
-        assert!(event_loop_proxy
-            .send_event(UserEvent::GraphicsState(gfx))
-            .is_ok());
-    }
-
-    fn suspended(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
-        if let Some(gfx) = self.gfx.as_mut() {
-            gfx.suspend();
-        }
+        let fut = async move {
+            assert!(event_loop_proxy
+                .send_event(UserEvent::GraphicsState(Graphics::new(window).await))
+                .is_ok());
+        };
+        futures::block_on_or_spawn_local(fut);
     }
 
     fn window_event(
@@ -159,20 +178,26 @@ where
 
                 self.update_ticker.start_draw();
                 while self.update_ticker.tick() {
-                    game.update(&mut UpdateContext {
+                    game.update(&mut Context {
                         input: &self.input_state,
                         #[cfg(feature = "audio")]
                         audio: &mut self.audio,
-                        canvas: &gfx.canvas,
-                        window: Window(&gfx.window),
+                        gfx,
                     });
                     self.input_state.update();
                 }
 
-                game.draw(&mut gfx.canvas);
-
-                gfx.flush_and_swap_buffers();
-                gfx.window.request_redraw();
+                let mut scene = Scene::default();
+                game.draw(
+                    &mut Context {
+                        input: &self.input_state,
+                        #[cfg(feature = "audio")]
+                        audio: &mut self.audio,
+                        gfx,
+                    },
+                    &mut scene,
+                );
+                gfx.render(&scene);
             }
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::KeyboardInput {
@@ -228,15 +253,14 @@ where
 
     fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, event: UserEvent) {
         match event {
-            UserEvent::GraphicsState(gfx) => {
+            UserEvent::GraphicsState(mut gfx) => {
                 #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
                 let _guard = self.tokio_rt.enter();
-                self.game = Some(G::new(&mut UpdateContext {
+                self.game = Some(G::new(&mut Context {
                     input: &self.input_state,
                     #[cfg(feature = "audio")]
                     audio: &mut self.audio,
-                    canvas: &gfx.canvas,
-                    window: Window(&gfx.window),
+                    gfx: &mut gfx,
                 }));
                 self.gfx = Some(gfx);
             }
@@ -245,7 +269,7 @@ where
 }
 
 /// Bag of stuff available to be accessed during [`Game::update`].
-pub struct UpdateContext<'a> {
+pub struct Context<'a> {
     /// Input state.
     pub input: &'a InputState,
 
@@ -253,33 +277,8 @@ pub struct UpdateContext<'a> {
     /// Audio context.
     pub audio: &'a mut AudioContext,
 
-    /// Window.
-    pub window: Window<'a>,
-
-    canvas: &'a Canvas,
-}
-
-impl<'a> UpdateContext<'a> {
-    /// Current size of the canvas.
-    pub fn canvas_size(&self) -> (u32, u32) {
-        self.canvas.size()
-    }
-}
-
-/// Window.
-pub struct Window<'a>(&'a winit::window::Window);
-
-impl<'a> Window<'a> {
-    /// Sets the title of the window.
-    pub fn set_title(&self, title: &str) {
-        self.0.set_title(title);
-    }
-
-    /// Requests the size of the window to be a given size.
-    pub fn set_size(&self, width: u32, height: u32, resizable: bool) {
-        self.0.set_resizable(resizable);
-        let _ = self.0.request_inner_size(PhysicalSize::new(width, height));
-    }
+    /// Graphics context.
+    pub gfx: &'a mut Graphics,
 }
 
 /// Trait to implement for your game.
@@ -292,17 +291,17 @@ pub trait Game {
     /// Constructs the game.
     ///
     /// If Tokio support is enabled, the Tokio runtime will be available here.
-    fn new(s: &mut UpdateContext) -> Self;
+    fn new(ctxt: &mut Context) -> Self;
 
     /// Updates the game state [`Game::TICKS_PER_SECOND`] per second.
     ///
     /// This may be called multiple times between calls to [`Game::draw`], depending on the time elapsed. This implements the [fix your timestep](https://gafferongames.com/post/fix_your_timestep/) pattern internally.
     ///
     /// You may not perform any drawing in this function.
-    fn update(&mut self, s: &mut UpdateContext);
+    fn update(&mut self, ctxt: &mut Context);
 
-    /// Draws the game state to the canvas.
-    fn draw(&mut self, canvas: &mut Canvas);
+    /// Draws the game state.
+    fn draw<'a>(&'a mut self, ctxt: &mut Context, scene: &mut Scene<'a>);
 }
 
 /// Runs the game.
