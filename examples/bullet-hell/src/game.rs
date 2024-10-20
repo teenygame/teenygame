@@ -2,24 +2,24 @@ use std::f32::consts::TAU;
 
 use glam::Vec2;
 use rgb::FromSlice;
-use slotmap::{DefaultKey, DenseSlotMap};
+use soa_rs::{soa, Soa, Soars};
 use teenygame::{
     graphics::{font, AffineTransform, Color, ImgRef, Scene, Texture, TextureSlice},
     input::KeyCode,
     time, Context,
 };
 
+#[derive(Soars)]
 pub struct Bullet {
     n: usize,
     pos: glam::Vec2,
     vel: glam::Vec2,
-    accel: glam::Vec2,
     theta: f32,
 }
 
 pub struct Game {
     n: usize,
-    bullets: DenseSlotMap<DefaultKey, Bullet>,
+    bullets: Soa<Bullet>,
     bullet_texture: Texture,
     player_pos: glam::Vec2,
     elapsed: usize,
@@ -41,7 +41,7 @@ impl teenygame::Game for Game {
 
         Self {
             n: 0,
-            bullets: DenseSlotMap::new(),
+            bullets: soa![],
             bullet_texture: ctxt.gfx.load_texture(ImgRef::new(
                 &img.as_rgba8().unwrap().as_rgba(),
                 img.width() as usize,
@@ -81,25 +81,24 @@ impl teenygame::Game for Game {
         }
 
         let mut cleanup = vec![];
-        for (idx, bullet) in self.bullets.iter_mut() {
-            bullet.vel += bullet.accel;
-            bullet.pos += bullet.vel;
+        for (i, bullet) in self.bullets.iter_mut().enumerate() {
+            *bullet.pos += *bullet.vel;
             if bullet.pos.x < -(WIDTH as f32 * 0.5)
                 || bullet.pos.y < -(HEIGHT as f32 * 0.5)
                 || bullet.pos.x >= WIDTH as f32 * 1.5
                 || bullet.pos.y >= HEIGHT as f32 * 1.5
             {
-                cleanup.push(idx);
+                cleanup.push(i);
             }
         }
 
-        for idx in cleanup {
-            self.bullets.remove(idx);
+        for i in cleanup {
+            self.bullets.swap_remove(i);
         }
 
         let t = self.elapsed as f32 / 50.0;
         let theta_base = t.sin() * t.cos() * 32.0;
-        const REPEATS: usize = 6;
+        const REPEATS: usize = 12;
         for i in 0..REPEATS {
             let theta = theta_base + i as f32 / REPEATS as f32 * TAU;
 
@@ -107,10 +106,9 @@ impl teenygame::Game for Game {
             let s = theta.sin();
 
             const SPEED: f32 = 3.0;
-            self.bullets.insert(Bullet {
+            self.bullets.push(Bullet {
                 n: self.n,
                 pos: glam::Vec2::new(WIDTH as f32 / 2.0, HEIGHT as f32 / 2.0),
-                accel: glam::Vec2::new(0.0, 0.0),
                 vel: glam::Vec2::new(c * SPEED, s * SPEED),
                 theta,
             });
@@ -118,11 +116,10 @@ impl teenygame::Game for Game {
         }
 
         let mut dead = false;
-        for (_, bullet) in self.bullets.iter() {
+        for pos in self.bullets.pos() {
             const BULLET_RADIUS: f32 = 8.0;
             const PLAYER_HITBOX: f32 = 8.0;
-            if (bullet.pos.x - self.player_pos.x).powi(2)
-                + (bullet.pos.y - self.player_pos.y).powi(2)
+            if (pos.x - self.player_pos.x).powi(2) + (pos.y - self.player_pos.y).powi(2)
                 <= (BULLET_RADIUS + PLAYER_HITBOX).powi(2)
             {
                 dead = true;
@@ -131,7 +128,7 @@ impl teenygame::Game for Game {
         }
 
         if dead {
-            self.bullets.clear();
+            // self.bullets.clear();
         }
 
         self.elapsed += 1;
@@ -148,9 +145,14 @@ impl teenygame::Game for Game {
             .slice(0, 16, 16, 16)
             .unwrap();
 
-        for (_, bullet) in self.bullets.iter() {
+        for (n, (pos, theta)) in self
+            .bullets
+            .n()
+            .iter()
+            .zip(self.bullets.pos().iter().zip(self.bullets.theta()))
+        {
             let color = coolor::Hsl {
-                h: bullet.n as f32 / 2.0,
+                h: *n as f32 / 2.0,
                 s: 1.0,
                 l: 0.5,
             }
@@ -161,8 +163,8 @@ impl teenygame::Game for Game {
                 bullet_texture_slice,
                 Color::new(color.r, color.g, color.b, 0xff),
                 AffineTransform::translation(-(tw as f32) / 2.0, -(th as f32) / 2.0)
-                    * AffineTransform::rotation(bullet.theta + TAU / 4.0)
-                    * AffineTransform::translation(bullet.pos.x, bullet.pos.y),
+                    * AffineTransform::rotation(theta + TAU / 4.0)
+                    * AffineTransform::translation(pos.x, pos.y),
             );
 
             let [tw, th] = player_texture_slice.size();
