@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use canvasette::Renderer;
-pub use canvasette::{font, AffineTransform, Canvas, PreparedText, TextureSlice};
+pub use canvasette::{font, AffineTransform, Canvas, Drawable, PreparedText, TextureSlice};
 pub use imgref::ImgRef;
 use wgpu::util::DeviceExt;
 pub use wgpu::Texture;

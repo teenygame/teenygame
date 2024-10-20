@@ -4,7 +4,7 @@ use glam::Vec2;
 use rgb::FromSlice;
 use soa_rs::{soa, Soa, Soars};
 use teenygame::{
-    graphics::{font, AffineTransform, Canvas, Color, ImgRef, Texture, TextureSlice},
+    graphics::{font, AffineTransform, Canvas, Color, Drawable, ImgRef, Texture, TextureSlice},
     input::KeyCode,
     time, Context,
 };
@@ -196,9 +196,8 @@ impl teenygame::Game for Game {
             .to_rgb();
 
             let [tw, th] = bullet_texture_slice.size();
-            canvas.draw_sprite(
-                bullet_texture_slice,
-                Color::new(color.r, color.g, color.b, 0xff),
+            canvas.draw_with_transform(
+                bullet_texture_slice.tinted(Color::new(color.r, color.g, color.b, 0xff)),
                 AffineTransform::translation(-(tw as f32) / 2.0, -(th as f32) / 2.0)
                     * AffineTransform::rotation(theta + TAU / 4.0)
                     * AffineTransform::translation(pos.x, pos.y)
@@ -206,28 +205,29 @@ impl teenygame::Game for Game {
             );
 
             let [tw, th] = player_texture_slice.size();
-            canvas.draw_sprite(
+            canvas.draw_with_transform(
                 player_texture_slice,
-                Color::new(0xff, 0xff, 0xff, 0xff),
                 AffineTransform::translation(-(tw as f32) / 2.0, -(th as f32) / 2.0)
                     * AffineTransform::translation(self.player_pos.x, self.player_pos.y)
                     * AffineTransform::scaling(SCALE as f32, SCALE as f32),
             );
         }
 
-        canvas.draw_text(
-            ctxt.gfx.prepare_text(
-                format!(
-                    "deaths: {}\nnum bullets: {}\nfps: {:.02}",
-                    self.deaths,
-                    self.bullets.len(),
-                    1.0 / (start_time - self.last_draw_time).as_secs_f32()
-                ),
-                font::Metrics::relative(64.0, 1.0),
-                font::Attrs::default(),
-            ),
-            Color::new(0xff, 0xff, 0xff, 0xff),
-            AffineTransform::translation(16.0, 56.0),
+        canvas.draw(
+            ctxt.gfx
+                .prepare_text(
+                    format!(
+                        "deaths: {}\nnum bullets: {}\nfps: {:.02}",
+                        self.deaths,
+                        self.bullets.len(),
+                        1.0 / (start_time - self.last_draw_time).as_secs_f32()
+                    ),
+                    font::Metrics::relative(64.0, 1.0),
+                    font::Attrs::default(),
+                )
+                .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
+            16.0,
+            56.0,
         );
 
         self.last_draw_time = start_time;

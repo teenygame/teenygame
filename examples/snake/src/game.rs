@@ -4,7 +4,7 @@ use teenygame::{
     audio::{PlaybackHandle, Region, Sound, Source},
     graphics::{
         font::{Attrs, Metrics},
-        AffineTransform, Color, Texture, TextureSlice,
+        AffineTransform, Color, Drawable as _, Texture, TextureSlice,
     },
     input::KeyCode,
     Context,
@@ -187,15 +187,14 @@ impl teenygame::Game for Game {
     ) {
         for (y, row) in self.board.iter().enumerate() {
             for (x, cell) in row.iter().enumerate() {
-                canvas.draw_sprite(
-                    TextureSlice::from(&self.texture),
-                    match cell {
+                canvas.draw_with_transform(
+                    TextureSlice::from(&self.texture).tinted(match cell {
                         None => {
                             continue;
                         }
                         Some(Cell::Fruit) => Color::new(0xff, 0x00, 0x00, 0xff),
                         Some(Cell::Snake) => Color::new(0xff, 0xff, 0xff, 0xff),
-                    },
+                    }),
                     AffineTransform::scaling(CELL_SIZE as f32, CELL_SIZE as f32)
                         * AffineTransform::translation(
                             (x * CELL_SIZE) as f32,
@@ -205,14 +204,16 @@ impl teenygame::Game for Game {
             }
         }
 
-        canvas.draw_text(
-            ctxt.gfx.prepare_text(
-                format!("Score: {}", self.score),
-                Metrics::relative(64.0, 1.0),
-                Attrs::default(),
-            ),
-            Color::new(0xff, 0xff, 0xff, 0xff),
-            AffineTransform::translation(16.0, 56.0),
+        canvas.draw(
+            ctxt.gfx
+                .prepare_text(
+                    format!("Score: {}", self.score),
+                    Metrics::relative(64.0, 1.0),
+                    Attrs::default(),
+                )
+                .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
+            16.0,
+            56.0,
         );
 
         if self.game_over {
@@ -220,13 +221,10 @@ impl teenygame::Game for Game {
                 ctxt.gfx
                     .prepare_text("GAME OVER", Metrics::relative(128.0, 1.0), Attrs::default());
             let [w, h] = prepared_game_over.bounding_box();
-            canvas.draw_text(
-                prepared_game_over,
-                Color::new(0xff, 0x00, 0x00, 0xff),
-                AffineTransform::translation(
-                    (BOARD_WIDTH * CELL_SIZE / 2) as f32 - w / 2.0,
-                    (BOARD_HEIGHT * CELL_SIZE / 2) as f32 + h / 2.0,
-                ),
+            canvas.draw(
+                prepared_game_over.tinted(Color::new(0xff, 0x00, 0x00, 0xff)),
+                (BOARD_WIDTH * CELL_SIZE / 2) as f32 - w / 2.0,
+                (BOARD_HEIGHT * CELL_SIZE / 2) as f32 + h / 2.0,
             );
         }
     }
