@@ -4,7 +4,7 @@ use glam::Vec2;
 use rgb::FromSlice;
 use soa_rs::{soa, Soa, Soars};
 use teenygame::{
-    graphics::{font, AffineTransform, Canvas, Color, Drawable, ImgRef, Texture, TextureSlice},
+    graphics::{font, Canvas, Color, Drawable, ImgRef, Texture, TextureSlice, Transform},
     input::KeyCode,
     time, Context,
 };
@@ -198,18 +198,18 @@ impl teenygame::Game for Game {
             let [tw, th] = bullet_texture_slice.size();
             canvas.draw_with_transform(
                 bullet_texture_slice.tinted(Color::new(color.r, color.g, color.b, 0xff)),
-                AffineTransform::translation(-(tw as f32) / 2.0, -(th as f32) / 2.0)
-                    * AffineTransform::rotation(theta + TAU / 4.0)
-                    * AffineTransform::translation(pos.x, pos.y)
-                    * AffineTransform::scaling(SCALE as f32, SCALE as f32),
+                Transform::translation(-(tw as f32) / 2.0, -(th as f32) / 2.0)
+                    * Transform::rotation(theta + TAU / 4.0)
+                    * Transform::translation(pos.x, pos.y)
+                    * Transform::scaling(SCALE as f32, SCALE as f32),
             );
 
             let [tw, th] = player_texture_slice.size();
             canvas.draw_with_transform(
                 player_texture_slice,
-                AffineTransform::translation(-(tw as f32) / 2.0, -(th as f32) / 2.0)
-                    * AffineTransform::translation(self.player_pos.x, self.player_pos.y)
-                    * AffineTransform::scaling(SCALE as f32, SCALE as f32),
+                Transform::translation(-(tw as f32) / 2.0, -(th as f32) / 2.0)
+                    * Transform::translation(self.player_pos.x, self.player_pos.y)
+                    * Transform::scaling(SCALE as f32, SCALE as f32),
             );
         }
 

@@ -4,7 +4,7 @@ use teenygame::{
     audio::{PlaybackHandle, Region, Sound, Source},
     graphics::{
         font::{Attrs, Metrics},
-        AffineTransform, Color, Drawable as _, Texture, TextureSlice,
+        Color, Drawable as _, Texture, TextureSlice, Transform,
     },
     input::KeyCode,
     Context,
@@ -195,11 +195,8 @@ impl teenygame::Game for Game {
                         Some(Cell::Fruit) => Color::new(0xff, 0x00, 0x00, 0xff),
                         Some(Cell::Snake) => Color::new(0xff, 0xff, 0xff, 0xff),
                     }),
-                    AffineTransform::scaling(CELL_SIZE as f32, CELL_SIZE as f32)
-                        * AffineTransform::translation(
-                            (x * CELL_SIZE) as f32,
-                            (y * CELL_SIZE) as f32,
-                        ),
+                    Transform::scaling(CELL_SIZE as f32, CELL_SIZE as f32)
+                        * Transform::translation((x * CELL_SIZE) as f32, (y * CELL_SIZE) as f32),
                 );
             }
         }
