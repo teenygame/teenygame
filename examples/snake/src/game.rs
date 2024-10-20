@@ -202,8 +202,7 @@ impl teenygame::Game for Game {
             AffineTransform::scaling(
                 (BOARD_WIDTH * CELL_SIZE) as f32,
                 (BOARD_HEIGHT * CELL_SIZE) as f32,
-            ) * AffineTransform::translation(0.0, 0.0)
-                * transform,
+            ) * transform,
         );
 
         for (y, row) in self.board.iter().enumerate() {
