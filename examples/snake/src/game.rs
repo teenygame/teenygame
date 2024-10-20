@@ -68,7 +68,7 @@ impl teenygame::Game for Game {
         window.set_size(
             (BOARD_WIDTH * CELL_SIZE) as u32,
             (BOARD_HEIGHT * CELL_SIZE) as u32,
-            true,
+            false,
         );
 
         let mut board = [[None; BOARD_WIDTH]; BOARD_HEIGHT];
@@ -185,23 +185,6 @@ impl teenygame::Game for Game {
         ctxt: &mut teenygame::Context,
         scene: &mut teenygame::graphics::Scene<'a>,
     ) {
-        let window = ctxt.gfx.window();
-        let [width, height] = window.size();
-
-        let transform = AffineTransform::translation(
-            (width as i32 / 2 - (BOARD_WIDTH * CELL_SIZE) as i32 / 2) as f32,
-            (height as i32 / 2 - (BOARD_HEIGHT * CELL_SIZE) as i32 / 2) as f32,
-        );
-
-        scene.draw_sprite(
-            TextureSlice::from(&self.texture),
-            Color::new(0x10, 0x10, 0x10, 0xff),
-            AffineTransform::scaling(
-                (BOARD_WIDTH * CELL_SIZE) as f32,
-                (BOARD_HEIGHT * CELL_SIZE) as f32,
-            ) * transform,
-        );
-
         for (y, row) in self.board.iter().enumerate() {
             for (x, cell) in row.iter().enumerate() {
                 scene.draw_sprite(
@@ -217,8 +200,7 @@ impl teenygame::Game for Game {
                         * AffineTransform::translation(
                             (x * CELL_SIZE) as f32,
                             (y * CELL_SIZE) as f32,
-                        )
-                        * transform,
+                        ),
                 );
             }
         }
@@ -230,7 +212,7 @@ impl teenygame::Game for Game {
                 Attrs::default(),
             ),
             Color::new(0xff, 0xff, 0xff, 0xff),
-            AffineTransform::translation(16.0, 56.0) * transform,
+            AffineTransform::translation(16.0, 56.0),
         );
 
         if self.game_over {
