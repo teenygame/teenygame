@@ -85,10 +85,11 @@ impl teenygame::Game for Game {
         let mut game = Self {
             texture: ctxt.gfx.load_texture(teenygame::graphics::ImgRef::new(
                 &[
-                    Color::new(0xff, 0xff, 0xff, 0xff),
-                    Color::new(0xff, 0x00, 0x00, 0xff),
+                    Color::new(0xff, 0xff, 0xff, 0xff), // snake
+                    Color::new(0xff, 0x00, 0x00, 0xff), // fruit
+                    Color::new(0x88, 0x88, 0x88, 0xff), // background
                 ],
-                2,
+                3,
                 1,
             )),
             pickup_sfx: Source::load(include_bytes!("pickup.wav")).unwrap(),
@@ -196,6 +197,15 @@ impl teenygame::Game for Game {
             (height as i32 / 2 - (BOARD_HEIGHT * CELL_SIZE) as i32 / 2) as f32,
         );
 
+        scene.draw_sprite(
+            TextureSlice::from(&self.texture).slice(2, 0, 1, 1).unwrap(),
+            AffineTransform::scaling(
+                (BOARD_WIDTH * CELL_SIZE) as f32,
+                (BOARD_HEIGHT * CELL_SIZE) as f32,
+            ) * AffineTransform::translation(0.0, 0.0)
+                * transform,
+        );
+
         for (y, row) in self.board.iter().enumerate() {
             for (x, cell) in row.iter().enumerate() {
                 scene.draw_sprite(
@@ -244,31 +254,5 @@ impl teenygame::Game for Game {
                 ),
             );
         }
-
-        // Draw a border by using the 1x1 white pixel in our texture.
-        scene.draw_sprite(
-            TextureSlice::from(&self.texture).slice(0, 0, 1, 1).unwrap(),
-            AffineTransform::scaling((BOARD_WIDTH * CELL_SIZE + 16) as f32, 8.0)
-                * AffineTransform::translation(-8.0, -8.0)
-                * transform,
-        );
-        scene.draw_sprite(
-            TextureSlice::from(&self.texture).slice(0, 0, 1, 1).unwrap(),
-            AffineTransform::scaling((BOARD_WIDTH * CELL_SIZE + 16) as f32, 8.0)
-                * AffineTransform::translation(-8.0, (BOARD_HEIGHT * CELL_SIZE) as f32)
-                * transform,
-        );
-        scene.draw_sprite(
-            TextureSlice::from(&self.texture).slice(0, 0, 1, 1).unwrap(),
-            AffineTransform::scaling(8.0, (BOARD_HEIGHT * CELL_SIZE + 16) as f32)
-                * AffineTransform::translation(-8.0, -8.0)
-                * transform,
-        );
-        scene.draw_sprite(
-            TextureSlice::from(&self.texture).slice(0, 0, 1, 1).unwrap(),
-            AffineTransform::scaling(8.0, (BOARD_HEIGHT * CELL_SIZE + 16) as f32)
-                * AffineTransform::translation((BOARD_WIDTH * CELL_SIZE) as f32, -8.0)
-                * transform,
-        );
     }
 }
