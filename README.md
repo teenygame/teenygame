@@ -6,17 +6,17 @@ It's designed for 2D games with a focus on providing a way to draw graphics, pla
 
 ## Features
 - 2D graphics!
+- Touch events!
 - Audio!
-
-Note that there is no support for 3D graphics.
 
 ## Supported platforms
 
-- Linux
-- macOS
-- Windows
-- Web
-- iOS
+- 🟢 **Linux**
+- 🟢 **macOS**
+- 🟢 **Windows**
+- 🟢 **Web**
+- ⚠️ **iOS:** Gets stuck after rendering first frame. No support for app lifecycle (e.g. suspend).
+- ❓ **Android:** Untested.
 
 ## Examples
 
