@@ -25,7 +25,7 @@ pub mod time;
 
 #[cfg(feature = "audio")]
 use audio::AudioContext;
-use canvasette::Scene;
+use canvasette::Canvas;
 pub use graphics::Graphics;
 use input::InputState;
 use std::time::Duration;
@@ -187,7 +187,7 @@ where
                     self.input_state.update();
                 }
 
-                let mut scene = Scene::new();
+                let mut canvas = Canvas::new();
                 game.draw(
                     &mut Context {
                         input: &self.input_state,
@@ -195,9 +195,9 @@ where
                         audio: &mut self.audio,
                         gfx,
                     },
-                    &mut scene,
+                    &mut canvas,
                 );
-                gfx.render(&scene);
+                gfx.render(&canvas);
             }
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::KeyboardInput {
@@ -301,7 +301,7 @@ pub trait Game {
     fn update(&mut self, ctxt: &mut Context);
 
     /// Draws the game state.
-    fn draw<'a>(&'a mut self, ctxt: &mut Context, scene: &mut Scene<'a>);
+    fn draw<'a>(&'a mut self, ctxt: &mut Context, canvas: &mut Canvas<'a>);
 }
 
 /// Runs the game.

@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use canvasette::Renderer;
-pub use canvasette::{font, AffineTransform, PreparedText, Scene, TextureSlice};
+pub use canvasette::{font, AffineTransform, Canvas, PreparedText, TextureSlice};
 pub use imgref::ImgRef;
 use wgpu::util::DeviceExt;
 pub use wgpu::Texture;
@@ -187,10 +187,10 @@ impl Graphics {
         )
     }
 
-    fn render_to_texture(&mut self, scene: &Scene, texture: &Texture) {
+    fn render_to_texture(&mut self, canvas: &Canvas, texture: &Texture) {
         let prepared = self
             .canvasette_renderer
-            .prepare(&self.device, &self.queue, texture.size(), scene)
+            .prepare(&self.device, &self.queue, texture.size(), canvas)
             .unwrap();
 
         let mut encoder = self
@@ -223,15 +223,15 @@ impl Graphics {
     }
 
     /// Renders to a framebuffer.
-    pub fn render_to_framebuffer(&mut self, scene: &Scene, framebuffer: &Framebuffer) {
-        self.render_to_texture(scene, framebuffer.texture());
+    pub fn render_to_framebuffer(&mut self, canvas: &Canvas, framebuffer: &Framebuffer) {
+        self.render_to_texture(canvas, framebuffer.texture());
     }
 
-    pub(crate) fn render(&mut self, scene: &Scene) {
+    pub(crate) fn render(&mut self, canvas: &Canvas) {
         let frame = self
             .get_current_frame()
             .expect("failed to acquire next swap chain texture");
-        self.render_to_texture(&scene, &frame.texture);
+        self.render_to_texture(&canvas, &frame.texture);
         self.window.pre_present_notify();
         frame.present();
         self.window.request_redraw();

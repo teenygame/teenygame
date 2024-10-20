@@ -183,11 +183,11 @@ impl teenygame::Game for Game {
     fn draw<'a>(
         &'a mut self,
         ctxt: &mut teenygame::Context,
-        scene: &mut teenygame::graphics::Scene<'a>,
+        canvas: &mut teenygame::graphics::Canvas<'a>,
     ) {
         for (y, row) in self.board.iter().enumerate() {
             for (x, cell) in row.iter().enumerate() {
-                scene.draw_sprite(
+                canvas.draw_sprite(
                     TextureSlice::from(&self.texture),
                     match cell {
                         None => {
@@ -205,7 +205,7 @@ impl teenygame::Game for Game {
             }
         }
 
-        scene.draw_text(
+        canvas.draw_text(
             ctxt.gfx.prepare_text(
                 format!("Score: {}", self.score),
                 Metrics::relative(64.0, 1.0),
@@ -220,7 +220,7 @@ impl teenygame::Game for Game {
                 ctxt.gfx
                     .prepare_text("GAME OVER", Metrics::relative(128.0, 1.0), Attrs::default());
             let [w, h] = prepared_game_over.bounding_box();
-            scene.draw_text(
+            canvas.draw_text(
                 prepared_game_over,
                 Color::new(0xff, 0x00, 0x00, 0xff),
                 AffineTransform::translation(
