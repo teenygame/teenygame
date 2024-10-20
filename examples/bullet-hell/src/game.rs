@@ -77,7 +77,14 @@ impl teenygame::Game for Game {
         };
 
         if direction != Vec2::ZERO {
-            self.player_pos += direction.normalize() * speed;
+            let next_pos = self.player_pos + direction.normalize() * speed;
+            if next_pos.x >= 0.0
+                && next_pos.y >= 0.0
+                && next_pos.x < WIDTH as f32
+                && next_pos.y < HEIGHT as f32
+            {
+                self.player_pos = next_pos;
+            }
         }
 
         let mut cleanup = vec![];
@@ -117,8 +124,8 @@ impl teenygame::Game for Game {
 
         let mut dead = false;
         for pos in self.bullets.pos() {
-            const BULLET_RADIUS: f32 = 8.0;
-            const PLAYER_HITBOX: f32 = 8.0;
+            const BULLET_RADIUS: f32 = 4.0;
+            const PLAYER_HITBOX: f32 = 4.0;
             if (pos.x - self.player_pos.x).powi(2) + (pos.y - self.player_pos.y).powi(2)
                 <= (BULLET_RADIUS + PLAYER_HITBOX).powi(2)
             {
@@ -128,7 +135,7 @@ impl teenygame::Game for Game {
         }
 
         if dead {
-            // self.bullets.clear();
+            self.bullets.clear();
         }
 
         self.elapsed += 1;
