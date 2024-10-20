@@ -40,7 +40,22 @@ impl Graphics {
     pub(crate) async fn new(window: winit::window::Window) -> Self {
         let window = Arc::new(window);
 
-        let instance = wgpu::Instance::default();
+        // Taken from https://github.com/emilk/egui/blob/454abf705b87aba70cef582d6ce80f74aa398906/crates/eframe/src/web/web_painter_wgpu.rs#L117-L166
+        //
+        // We try to see if we can use default backends first to initialize an adapter. If not, we fall back on GL.
+        let mut instance = wgpu::Instance::default();
+        if instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                ..Default::default()
+            })
+            .await
+            .is_none()
+        {
+            instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+                backends: wgpu::Backends::GL,
+                ..Default::default()
+            });
+        }
 
         let surface = instance.create_surface(window.clone()).unwrap();
 
