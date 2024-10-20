@@ -187,7 +187,7 @@ where
                     self.input_state.update();
                 }
 
-                let mut scene = Scene::default();
+                let mut scene = Scene::new();
                 game.draw(
                     &mut Context {
                         input: &self.input_state,

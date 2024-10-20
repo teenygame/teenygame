@@ -1,7 +1,5 @@
 //! Graphics support.
 
-pub mod ninepatch;
-
 use std::sync::Arc;
 
 use canvasette::Renderer;
@@ -133,7 +131,7 @@ impl Graphics {
     pub fn create_framebuffer(&self, size: [u32; 2]) -> Framebuffer {
         let [width, height] = size;
         Framebuffer(self.device.create_texture(&wgpu::TextureDescriptor {
-            label: None,
+            label: Some("teenygame: Framebuffer"),
             size: wgpu::Extent3d {
                 width,
                 height,
@@ -157,7 +155,7 @@ impl Graphics {
         self.device.create_texture_with_data(
             &self.queue,
             &wgpu::TextureDescriptor {
-                label: None,
+                label: Some("teenygame: Texture"),
                 size: wgpu::Extent3d {
                     width: width as u32,
                     height: height as u32,
@@ -183,7 +181,9 @@ impl Graphics {
 
         let mut encoder = self
             .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("teenygame: encoder"),
+            });
 
         {
             let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
