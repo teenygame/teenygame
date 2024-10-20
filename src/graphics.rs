@@ -36,7 +36,6 @@ impl Framebuffer {
 }
 
 impl Graphics {
-    #[allow(unused_variables, unused_mut)]
     pub(crate) async fn new(window: winit::window::Window) -> Self {
         let window = Arc::new(window);
 
