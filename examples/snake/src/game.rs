@@ -84,12 +84,8 @@ impl teenygame::Game for Game {
 
         let mut game = Self {
             texture: ctxt.gfx.load_texture(teenygame::graphics::ImgRef::new(
-                &[
-                    Color::new(0xff, 0xff, 0xff, 0xff), // snake
-                    Color::new(0xff, 0x00, 0x00, 0xff), // fruit
-                    Color::new(0x88, 0x88, 0x88, 0xff), // background
-                ],
-                3,
+                &[Color::new(0xff, 0xff, 0xff, 0xff)],
+                1,
                 1,
             )),
             pickup_sfx: Source::load(include_bytes!("pickup.wav")).unwrap(),
@@ -198,7 +194,8 @@ impl teenygame::Game for Game {
         );
 
         scene.draw_sprite(
-            TextureSlice::from(&self.texture).slice(2, 0, 1, 1).unwrap(),
+            TextureSlice::from(&self.texture),
+            Color::new(0x10, 0x10, 0x10, 0xff),
             AffineTransform::scaling(
                 (BOARD_WIDTH * CELL_SIZE) as f32,
                 (BOARD_HEIGHT * CELL_SIZE) as f32,
@@ -208,16 +205,13 @@ impl teenygame::Game for Game {
         for (y, row) in self.board.iter().enumerate() {
             for (x, cell) in row.iter().enumerate() {
                 scene.draw_sprite(
+                    TextureSlice::from(&self.texture),
                     match cell {
                         None => {
                             continue;
                         }
-                        Some(Cell::Fruit) => {
-                            TextureSlice::from(&self.texture).slice(1, 0, 1, 1).unwrap()
-                        }
-                        Some(Cell::Snake) => {
-                            TextureSlice::from(&self.texture).slice(0, 0, 1, 1).unwrap()
-                        }
+                        Some(Cell::Fruit) => Color::new(0xff, 0x00, 0x00, 0xff),
+                        Some(Cell::Snake) => Color::new(0xff, 0xff, 0xff, 0xff),
                     },
                     AffineTransform::scaling(CELL_SIZE as f32, CELL_SIZE as f32)
                         * AffineTransform::translation(
