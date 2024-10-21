@@ -3,10 +3,9 @@
 use std::sync::Arc;
 
 use canvasette::Renderer;
-pub use canvasette::{font, Canvas, Drawable, PreparedText, TextureSlice, Transform};
+pub use canvasette::{font, Canvas, Drawable, PreparedText, Texture, TextureSlice, Transform};
 pub use imgref::ImgRef;
 use wgpu::util::DeviceExt;
-pub use wgpu::Texture;
 use winit::dpi::PhysicalSize;
 
 /// An 8-bit RGBA color.
@@ -26,11 +25,11 @@ pub struct Graphics {
 /// A texture that can be rendered to.
 ///
 /// Framebuffers may be created via [`Graphics::create_framebuffer`].
-pub struct Framebuffer(Texture);
+pub struct Framebuffer(wgpu::Texture);
 
 impl Framebuffer {
     /// Gets the underlying texture, which may be used for sprite drawing.
-    pub fn texture(&self) -> &Texture {
+    pub fn texture(&self) -> &wgpu::Texture {
         &self.0
     }
 }
@@ -166,7 +165,7 @@ impl Graphics {
     pub fn load_texture(&self, img: ImgRef<Color>) -> Texture {
         let (buf, width, height) = img.to_contiguous_buf();
 
-        self.device.create_texture_with_data(
+        Texture::from(self.device.create_texture_with_data(
             &self.queue,
             &wgpu::TextureDescriptor {
                 label: Some("teenygame: Texture"),
@@ -184,10 +183,10 @@ impl Graphics {
             },
             wgpu::util::TextureDataOrder::default(),
             &bytemuck::cast_slice(&buf),
-        )
+        ))
     }
 
-    fn render_to_texture(&mut self, canvas: &Canvas, texture: &Texture) {
+    fn render_to_texture(&mut self, canvas: &Canvas, texture: &wgpu::Texture) {
         let prepared = self
             .canvasette_renderer
             .prepare(&self.device, &self.queue, texture.size(), canvas)

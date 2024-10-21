@@ -135,15 +135,10 @@ impl teenygame::Game for Game {
             }
         }
 
-        let mut dead = false;
-        for pos in self.bullets.pos() {
-            if (pos.x - self.player_pos.x).powi(2) + (pos.y - self.player_pos.y).powi(2)
+        let dead = self.bullets.pos().iter().any(|pos| {
+            (pos.x - self.player_pos.x).powi(2) + (pos.y - self.player_pos.y).powi(2)
                 <= (BULLET_RADIUS + PLAYER_HITBOX).powi(2)
-            {
-                dead = true;
-                break;
-            }
-        }
+        });
 
         if dead {
             self.deaths += 1;
