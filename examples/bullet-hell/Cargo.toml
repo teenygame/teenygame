@@ -9,7 +9,6 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 teenygame = { path = "../.." }
 rand = "0.8.5"
-glam = "0.29.0"
 soa-rs = "0.7.2"
 image = { version = "0.25.2", default-features = false, features = ["png"] }
 rgb = "0.8.50"

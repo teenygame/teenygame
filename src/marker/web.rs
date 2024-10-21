@@ -1,7 +1,7 @@
 /// [`Send`] only if native.
-pub trait MaybeSend {}
-impl<T> MaybeSend for T {}
+pub trait WasmNotSend {}
+impl<T> WasmNotSend for T {}
 
 /// [`Sync`] only if native.
-pub trait MaybeSync {}
-impl<T> MaybeSync for T {}
+pub trait WasmNotSync {}
+impl<T> WasmNotSync for T {}

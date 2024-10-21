@@ -1,19 +1,19 @@
 use std::f32::consts::TAU;
 
-use glam::Vec2;
 use rgb::FromSlice;
 use soa_rs::{soa, Soa, Soars};
 use teenygame::{
-    graphics::{font, Canvas, Color, Drawable, ImgRef, Texture, TextureSlice, Transform},
+    graphics::{font, Canvas, Color, Drawable, ImgRef, Texture, TextureSlice},
     input::KeyCode,
+    math::*,
     time, Context,
 };
 
 #[derive(Soars)]
 pub struct Bullet {
     n: usize,
-    pos: glam::Vec2,
-    vel: glam::Vec2,
+    pos: Vec2,
+    vel: Vec2,
     theta: f32,
 }
 
@@ -22,7 +22,7 @@ pub struct Game {
     n: usize,
     bullets: Soa<Bullet>,
     bullet_texture: Texture,
-    player_pos: glam::Vec2,
+    player_pos: Vec2,
     elapsed: usize,
     last_draw_time: time::Instant,
 }
@@ -56,7 +56,7 @@ impl teenygame::Game for Game {
                 img.width() as usize,
                 img.height() as usize,
             )),
-            player_pos: glam::Vec2::new(WIDTH as f32 / 2.0, HEIGHT as f32 * 3.0 / 4.0),
+            player_pos: Vec2::new(WIDTH as f32 / 2.0, HEIGHT as f32 * 3.0 / 4.0),
             elapsed: 0,
             last_draw_time: time::Instant::now(),
         }
@@ -127,8 +127,8 @@ impl teenygame::Game for Game {
                 const SPEED: f32 = 3.0;
                 self.bullets.push(Bullet {
                     n: self.n,
-                    pos: glam::Vec2::new(WIDTH as f32 / 2.0, HEIGHT as f32 / 2.0),
-                    vel: glam::Vec2::new(c * SPEED, s * SPEED),
+                    pos: Vec2::new(WIDTH as f32 / 2.0, HEIGHT as f32 / 2.0),
+                    vel: Vec2::new(c * SPEED, s * SPEED),
                     theta,
                 });
                 self.n += 1;
@@ -170,11 +170,11 @@ impl teenygame::Game for Game {
         let start_time = time::Instant::now();
 
         let bullet_texture_slice = TextureSlice::from(&self.bullet_texture)
-            .slice(0, 272, 16, 32)
+            .slice(ivec2(0, 272), uvec2(16, 32))
             .unwrap();
 
         let player_texture_slice = TextureSlice::from(&self.bullet_texture)
-            .slice(0, 16, 16, 16)
+            .slice(ivec2(0, 16), uvec2(16, 16))
             .unwrap();
 
         for (n, (pos, theta)) in self
@@ -190,21 +190,27 @@ impl teenygame::Game for Game {
             }
             .to_rgb();
 
-            let [tw, th] = bullet_texture_slice.size();
+            let tsize = bullet_texture_slice.size();
             canvas.draw_with_transform(
                 bullet_texture_slice.tinted(Color::new(color.r, color.g, color.b, 0xff)),
-                Transform::translation(-(tw as f32) / 2.0, -(th as f32) / 2.0)
-                    * Transform::rotation(theta + TAU / 4.0)
-                    * Transform::translation(pos.x, pos.y)
-                    * Transform::scaling(SCALE as f32, SCALE as f32),
+                Affine2::from_scale(vec2(SCALE as f32, SCALE as f32))
+                    * Affine2::from_translation(vec2(pos.x, pos.y))
+                    * Affine2::from_angle(theta + TAU / 4.0)
+                    * Affine2::from_translation(vec2(
+                        -(tsize.x as f32) / 2.0,
+                        -(tsize.y as f32) / 2.0,
+                    )),
             );
 
-            let [tw, th] = player_texture_slice.size();
+            let tsize = player_texture_slice.size();
             canvas.draw_with_transform(
                 player_texture_slice,
-                Transform::translation(-(tw as f32) / 2.0, -(th as f32) / 2.0)
-                    * Transform::translation(self.player_pos.x, self.player_pos.y)
-                    * Transform::scaling(SCALE as f32, SCALE as f32),
+                Affine2::from_scale(vec2(SCALE as f32, SCALE as f32))
+                    * Affine2::from_translation(vec2(
+                        -(tsize.x as f32) / 2.0,
+                        -(tsize.y as f32) / 2.0,
+                    ))
+                    * Affine2::from_translation(vec2(self.player_pos.x, self.player_pos.y)),
             );
         }
 
@@ -221,8 +227,7 @@ impl teenygame::Game for Game {
                     font::Attrs::default(),
                 )
                 .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
-            16.0,
-            56.0,
+            vec2(16.0, 56.0),
         );
 
         self.last_draw_time = start_time;

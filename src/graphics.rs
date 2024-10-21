@@ -2,8 +2,9 @@
 
 use std::sync::Arc;
 
+use crate::math;
 use canvasette::Renderer;
-pub use canvasette::{font, Canvas, Drawable, PreparedText, Texture, TextureSlice, Transform};
+pub use canvasette::{font, Canvas, Drawable, PreparedText, Texture, TextureSlice};
 pub use imgref::ImgRef;
 use wgpu::util::DeviceExt;
 use winit::dpi::PhysicalSize;
@@ -147,13 +148,12 @@ impl Graphics {
     }
 
     /// Creates an empty framebuffer texture.
-    pub fn create_framebuffer(&self, size: [u32; 2]) -> Framebuffer {
-        let [width, height] = size;
+    pub fn create_framebuffer(&self, size: math::UVec2) -> Framebuffer {
         Framebuffer(self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("teenygame: Framebuffer"),
             size: wgpu::Extent3d {
-                width,
-                height,
+                width: size.x,
+                height: size.y,
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
@@ -259,9 +259,9 @@ impl<'a> Window<'a> {
     }
 
     /// Gets the current size of the window.
-    pub fn size(&self) -> [u32; 2] {
+    pub fn size(&self) -> math::UVec2 {
         let size = self.0.inner_size();
-        [size.width, size.height]
+        math::UVec2::new(size.width, size.height)
     }
 
     /// Gets the scale factor of the window.

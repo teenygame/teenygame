@@ -4,9 +4,10 @@ use teenygame::{
     audio::{PlaybackHandle, Region, Sound, Source},
     graphics::{
         font::{Attrs, Metrics},
-        Color, Drawable as _, Texture, TextureSlice, Transform,
+        Color, Drawable as _, Texture, TextureSlice,
     },
     input::KeyCode,
+    math::*,
     Context,
 };
 
@@ -21,12 +22,10 @@ pub enum Cell {
     Snake,
 }
 
-type Direction = (isize, isize);
-
-const NORTH: Direction = (0, -1);
-const SOUTH: Direction = (0, 1);
-const EAST: Direction = (1, 0);
-const WEST: Direction = (-1, 0);
+const NORTH: IVec2 = ivec2(0, -1);
+const SOUTH: IVec2 = ivec2(0, 1);
+const EAST: IVec2 = ivec2(1, 0);
+const WEST: IVec2 = ivec2(-1, 0);
 
 pub struct Game {
     texture: Texture,
@@ -35,9 +34,9 @@ pub struct Game {
     bgm_handle: Option<PlaybackHandle>,
     game_over: bool,
     board: [[Option<Cell>; BOARD_WIDTH]; BOARD_HEIGHT],
-    snake: VecDeque<(usize, usize)>,
-    direction: Direction,
-    next_direction: Direction,
+    snake: VecDeque<UVec2>,
+    direction: IVec2,
+    next_direction: IVec2,
     score: u32,
     elapsed: u32,
 }
@@ -72,10 +71,10 @@ impl teenygame::Game for Game {
         );
 
         let mut board = [[None; BOARD_WIDTH]; BOARD_HEIGHT];
-        let snake = VecDeque::from([(BOARD_WIDTH / 2, BOARD_HEIGHT / 2)]);
+        let snake = VecDeque::from([uvec2((BOARD_WIDTH / 2) as u32, (BOARD_HEIGHT / 2) as u32)]);
 
-        for (x, y) in snake.iter() {
-            board[*y][*x] = Some(Cell::Snake);
+        for pos in snake.iter() {
+            board[pos.y as usize][pos.x as usize] = Some(Cell::Snake);
         }
 
         ctxt.gfx.add_font(include_bytes!("PixelOperator.ttf"));
@@ -149,18 +148,19 @@ impl teenygame::Game for Game {
 
         self.direction = self.next_direction;
 
-        let (hx, hy) = *self.snake.back().unwrap();
-        let (dx, dy) = self.direction;
+        let head = *self.snake.back().unwrap();
 
-        let hx2 = (hx as isize + dx).rem_euclid(BOARD_WIDTH as isize) as usize;
-        let hy2 = (hy as isize + dy).rem_euclid(BOARD_HEIGHT as isize) as usize;
+        let head2 = uvec2(
+            (head.x as i32 + self.direction.x).rem_euclid(BOARD_WIDTH as i32) as u32,
+            (head.y as i32 + self.direction.y).rem_euclid(BOARD_HEIGHT as i32) as u32,
+        );
 
-        self.snake.push_back((hx2, hy2));
+        self.snake.push_back(head2.into());
 
-        match self.board[hy2][hx2] {
+        match self.board[head2.y as usize][head2.x as usize] {
             None => {
-                let (ohx, ohy) = self.snake.pop_front().unwrap();
-                self.board[ohy][ohx] = None;
+                let ohead = self.snake.pop_front().unwrap();
+                self.board[ohead.y as usize][ohead.x as usize] = None;
             }
             Some(Cell::Fruit) => {
                 self.spawn_fruit();
@@ -176,7 +176,7 @@ impl teenygame::Game for Game {
                 self.bgm_handle.take();
             }
         }
-        self.board[hy2][hx2] = Some(Cell::Snake);
+        self.board[head2.y as usize][head2.x as usize] = Some(Cell::Snake);
         self.elapsed = 0;
     }
 
@@ -195,8 +195,8 @@ impl teenygame::Game for Game {
                         Some(Cell::Fruit) => Color::new(0xff, 0x00, 0x00, 0xff),
                         Some(Cell::Snake) => Color::new(0xff, 0xff, 0xff, 0xff),
                     }),
-                    Transform::scaling(CELL_SIZE as f32, CELL_SIZE as f32)
-                        * Transform::translation((x * CELL_SIZE) as f32, (y * CELL_SIZE) as f32),
+                    Affine2::from_translation(vec2((x * CELL_SIZE) as f32, (y * CELL_SIZE) as f32))
+                        * Affine2::from_scale(vec2(CELL_SIZE as f32, CELL_SIZE as f32)),
                 );
             }
         }
@@ -209,8 +209,7 @@ impl teenygame::Game for Game {
                     Attrs::default(),
                 )
                 .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
-            16.0,
-            56.0,
+            vec2(16.0, 56.0),
         );
 
         if self.game_over {
@@ -220,8 +219,10 @@ impl teenygame::Game for Game {
             let [w, h] = prepared_game_over.bounding_box();
             canvas.draw(
                 prepared_game_over.tinted(Color::new(0xff, 0x00, 0x00, 0xff)),
-                (BOARD_WIDTH * CELL_SIZE / 2) as f32 - w / 2.0,
-                (BOARD_HEIGHT * CELL_SIZE / 2) as f32 + h / 2.0,
+                vec2(
+                    (BOARD_WIDTH * CELL_SIZE / 2) as f32 - w / 2.0,
+                    (BOARD_HEIGHT * CELL_SIZE / 2) as f32 + h / 2.0,
+                ),
             );
         }
     }

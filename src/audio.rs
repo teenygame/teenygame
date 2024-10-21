@@ -221,11 +221,11 @@ impl PlaybackHandle {
 }
 
 /// Context for playing audio.
-pub struct AudioContext {
+pub struct Audio {
     audio_manager: AudioManager,
 }
 
-impl AudioContext {
+impl Audio {
     pub(crate) fn new() -> Result<Self, Box<dyn std::error::Error>> {
         Ok(Self {
             audio_manager: AudioManager::<DefaultBackend>::new(AudioManagerSettings::default())?,

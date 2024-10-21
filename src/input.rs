@@ -1,10 +1,12 @@
 //! Input handling.
 
+use crate::math;
 use std::collections::{HashMap, HashSet};
 use winit::dpi::PhysicalPosition;
 pub use winit::{event::MouseButton, keyboard::KeyCode};
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+/// A contact point.
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
 pub struct Contact(u64);
 
 /// Touch state.
@@ -55,8 +57,10 @@ impl Touch {
     }
 
     /// Gets the position of a contact, or None if the contact was already lifted from the screen.
-    pub fn contact_position(&self, contact: Contact) -> Option<(f64, f64)> {
-        self.contacts.get(&contact).map(|v| (*v).into())
+    pub fn contact_position(&self, contact: Contact) -> Option<math::Vec2> {
+        self.contacts
+            .get(&contact)
+            .map(|pos| math::Vec2::new(pos.x as f32, pos.y as f32))
     }
 
     pub(crate) fn handle_touch_start(&mut self, id: u64, location: PhysicalPosition<f64>) {
@@ -183,8 +187,9 @@ impl Mouse {
     /// Gets the current position of the mouse.
     ///
     /// May return [`None`] if the mouse is not within the confines of the window.
-    pub fn position(&self) -> Option<(f64, f64)> {
-        self.pos.map(|pos| pos.into())
+    pub fn position(&self) -> Option<math::Vec2> {
+        self.pos
+            .map(|pos| math::Vec2::new(pos.x as f32, pos.y as f32))
     }
 
     pub(crate) fn handle_button_up(&mut self, button: MouseButton) {

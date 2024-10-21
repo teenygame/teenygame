@@ -2,13 +2,13 @@
 
 use std::future::Future;
 
-use crate::marker::MaybeSend;
+use crate::marker::WasmNotSend;
 
 /// Spawns a future.
 ///
 /// - On native platforms, the future must be [`Send`] as it will be spawned on another thread.
 /// - On WASM, the future does not need to be [`Send`] as it will be spawned on the same thread.
-pub fn spawn(fut: impl Future<Output = ()> + MaybeSend + 'static) {
+pub fn spawn(fut: impl Future<Output = ()> + WasmNotSend + 'static) {
     #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
     {
         tokio::task::spawn(fut);

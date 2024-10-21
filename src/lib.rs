@@ -20,11 +20,13 @@ pub mod file;
 pub mod futures;
 pub mod graphics;
 pub mod input;
-pub mod marker;
+pub mod math;
 pub mod time;
 
+mod marker;
+
 #[cfg(feature = "audio")]
-use audio::AudioContext;
+use audio::Audio;
 use canvasette::Canvas;
 pub use graphics::Graphics;
 use input::InputState;
@@ -44,7 +46,7 @@ enum UserEvent {
 
 struct Application<G> {
     #[cfg(feature = "audio")]
-    audio: AudioContext,
+    audio: Audio,
 
     gfx: Option<Graphics>,
 
@@ -70,7 +72,7 @@ where
             gfx: None,
 
             #[cfg(feature = "audio")]
-            audio: AudioContext::new().unwrap(),
+            audio: Audio::new().unwrap(),
 
             event_loop_proxy: event_loop.create_proxy(),
             input_state: InputState::new(),
@@ -275,7 +277,7 @@ pub struct Context<'a> {
 
     #[cfg(feature = "audio")]
     /// Audio context.
-    pub audio: &'a mut AudioContext,
+    pub audio: &'a mut Audio,
 
     /// Graphics context.
     pub gfx: &'a mut Graphics,
