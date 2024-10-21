@@ -41,7 +41,7 @@ impl teenygame::Game for Game {
     fn new(ctxt: &mut Context) -> Self {
         let window = ctxt.gfx.window();
         window.set_title("Bullet Hell");
-        window.set_size(WIDTH * SCALE, HEIGHT * SCALE, false);
+        window.set_size(uvec2(WIDTH * SCALE, HEIGHT * SCALE), false);
 
         ctxt.gfx.add_font(include_bytes!("PixelOperator.ttf"));
 

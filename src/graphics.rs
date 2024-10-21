@@ -253,9 +253,9 @@ impl<'a> Window<'a> {
     }
 
     /// Requests the size of the window to be a given size.
-    pub fn set_size(&self, width: u32, height: u32, resizable: bool) {
+    pub fn set_size(&self, size: math::UVec2, resizable: bool) {
         self.0.set_resizable(resizable);
-        let _ = self.0.request_inner_size(PhysicalSize::new(width, height));
+        let _ = self.0.request_inner_size(PhysicalSize::new(size.x, size.y));
     }
 
     /// Gets the current size of the window.

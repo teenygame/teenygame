@@ -65,8 +65,10 @@ impl teenygame::Game for Game {
         let window = ctxt.gfx.window();
         window.set_title("Snake");
         window.set_size(
-            (BOARD_WIDTH * CELL_SIZE) as u32,
-            (BOARD_HEIGHT * CELL_SIZE) as u32,
+            uvec2(
+                (BOARD_WIDTH * CELL_SIZE) as u32,
+                (BOARD_HEIGHT * CELL_SIZE) as u32,
+            ),
             false,
         );
 
