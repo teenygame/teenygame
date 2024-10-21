@@ -28,9 +28,9 @@ pub struct Graphics {
 pub struct Framebuffer(wgpu::Texture);
 
 impl Framebuffer {
-    /// Gets the underlying texture, which may be used for sprite drawing.
-    pub fn texture(&self) -> &wgpu::Texture {
-        &self.0
+    /// Gets the underlying texture as a [`TextureSlice`], which may be used for sprite drawing.
+    pub fn as_texture_slice(&self) -> TextureSlice {
+        TextureSlice::from(&self.0)
     }
 }
 
@@ -223,7 +223,7 @@ impl Graphics {
 
     /// Renders to a framebuffer.
     pub fn render_to_framebuffer(&mut self, canvas: &Canvas, framebuffer: &Framebuffer) {
-        self.render_to_texture(canvas, framebuffer.texture());
+        self.render_to_texture(canvas, &framebuffer.0);
     }
 
     pub(crate) fn render(&mut self, canvas: &Canvas) {
