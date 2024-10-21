@@ -11,10 +11,9 @@ use teenygame::{
     Context,
 };
 
-const BOARD_WIDTH: usize = 40;
-const BOARD_HEIGHT: usize = 22;
+const BOARD_SIZE: UVec2 = uvec2(40, 22);
 
-const CELL_SIZE: usize = 64;
+const CELL_SIZE: u32 = 64;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Cell {
@@ -33,7 +32,7 @@ pub struct Game {
     game_over_sfx: Source,
     bgm_handle: Option<PlaybackHandle>,
     game_over: bool,
-    board: [[Option<Cell>; BOARD_WIDTH]; BOARD_HEIGHT],
+    board: [[Option<Cell>; BOARD_SIZE.x as usize]; BOARD_SIZE.y as usize],
     snake: VecDeque<UVec2>,
     direction: IVec2,
     next_direction: IVec2,
@@ -64,16 +63,10 @@ impl teenygame::Game for Game {
     fn new(ctxt: &mut Context) -> Self {
         let window = ctxt.gfx.window();
         window.set_title("Snake");
-        window.set_size(
-            uvec2(
-                (BOARD_WIDTH * CELL_SIZE) as u32,
-                (BOARD_HEIGHT * CELL_SIZE) as u32,
-            ),
-            false,
-        );
+        window.set_size(BOARD_SIZE * CELL_SIZE, false);
 
-        let mut board = [[None; BOARD_WIDTH]; BOARD_HEIGHT];
-        let snake = VecDeque::from([uvec2((BOARD_WIDTH / 2) as u32, (BOARD_HEIGHT / 2) as u32)]);
+        let mut board = [[None; BOARD_SIZE.x as usize]; BOARD_SIZE.y as usize];
+        let snake = VecDeque::from([BOARD_SIZE / 2]);
 
         for pos in snake.iter() {
             board[pos.y as usize][pos.x as usize] = Some(Cell::Snake);
@@ -152,11 +145,11 @@ impl teenygame::Game for Game {
 
         let head = *self.snake.back().unwrap();
 
+        let head2 = head.as_ivec2() + self.direction;
         let head2 = uvec2(
-            (head.x as i32 + self.direction.x).rem_euclid(BOARD_WIDTH as i32) as u32,
-            (head.y as i32 + self.direction.y).rem_euclid(BOARD_HEIGHT as i32) as u32,
+            head2.x.rem_euclid(BOARD_SIZE.x as i32) as u32,
+            head2.y.rem_euclid(BOARD_SIZE.y as i32) as u32,
         );
-
         self.snake.push_back(head2.into());
 
         match self.board[head2.y as usize][head2.x as usize] {
@@ -197,7 +190,7 @@ impl teenygame::Game for Game {
                         Some(Cell::Fruit) => Color::new(0xff, 0x00, 0x00, 0xff),
                         Some(Cell::Snake) => Color::new(0xff, 0xff, 0xff, 0xff),
                     }),
-                    Affine2::from_translation(vec2((x * CELL_SIZE) as f32, (y * CELL_SIZE) as f32))
+                    Affine2::from_translation(vec2(x as f32, y as f32) * CELL_SIZE as f32)
                         * Affine2::from_scale(vec2(CELL_SIZE as f32, CELL_SIZE as f32)),
                 );
             }
@@ -222,8 +215,8 @@ impl teenygame::Game for Game {
             canvas.draw(
                 prepared_game_over.tinted(Color::new(0xff, 0x00, 0x00, 0xff)),
                 vec2(
-                    (BOARD_WIDTH * CELL_SIZE / 2) as f32 - w / 2.0,
-                    (BOARD_HEIGHT * CELL_SIZE / 2) as f32 + h / 2.0,
+                    (BOARD_SIZE.x * CELL_SIZE / 2) as f32 - w / 2.0,
+                    (BOARD_SIZE.y * CELL_SIZE / 2) as f32 + h / 2.0,
                 ),
             );
         }

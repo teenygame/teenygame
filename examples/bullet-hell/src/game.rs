@@ -27,8 +27,7 @@ pub struct Game {
     last_draw_time: time::Instant,
 }
 
-const WIDTH: u32 = 1024;
-const HEIGHT: u32 = 1024;
+const SIZE: UVec2 = uvec2(1024, 1024);
 
 const SCALE: u32 = 2;
 
@@ -41,7 +40,7 @@ impl teenygame::Game for Game {
     fn new(ctxt: &mut Context) -> Self {
         let window = ctxt.gfx.window();
         window.set_title("Bullet Hell");
-        window.set_size(uvec2(WIDTH * SCALE, HEIGHT * SCALE), false);
+        window.set_size(SIZE * SCALE, false);
 
         ctxt.gfx.add_font(include_bytes!("PixelOperator.ttf"));
 
@@ -56,7 +55,7 @@ impl teenygame::Game for Game {
                 img.width() as usize,
                 img.height() as usize,
             )),
-            player_pos: Vec2::new(WIDTH as f32 / 2.0, HEIGHT as f32 * 3.0 / 4.0),
+            player_pos: Vec2::new(SIZE.x as f32 / 2.0, SIZE.y as f32 * 3.0 / 4.0),
             elapsed: 0,
             last_draw_time: time::Instant::now(),
         }
@@ -89,8 +88,8 @@ impl teenygame::Game for Game {
             let next_pos = self.player_pos + direction.normalize() * speed;
             if next_pos.x >= 0.0
                 && next_pos.y >= 0.0
-                && next_pos.x < WIDTH as f32
-                && next_pos.y < HEIGHT as f32
+                && next_pos.x < SIZE.x as f32
+                && next_pos.y < SIZE.y as f32
             {
                 self.player_pos = next_pos;
             }
@@ -99,10 +98,10 @@ impl teenygame::Game for Game {
         let mut cleanup = vec![];
         for (i, bullet) in self.bullets.iter_mut().enumerate() {
             *bullet.pos += *bullet.vel;
-            if bullet.pos.x < -(WIDTH as f32 * 0.5)
-                || bullet.pos.y < -(HEIGHT as f32 * 0.5)
-                || bullet.pos.x >= WIDTH as f32 * 1.5
-                || bullet.pos.y >= HEIGHT as f32 * 1.5
+            if bullet.pos.x < -(SIZE.x as f32 * 0.5)
+                || bullet.pos.y < -(SIZE.y as f32 * 0.5)
+                || bullet.pos.x >= SIZE.x as f32 * 1.5
+                || bullet.pos.y >= SIZE.y as f32 * 1.5
             {
                 cleanup.push(i);
             }
@@ -127,7 +126,7 @@ impl teenygame::Game for Game {
                 const SPEED: f32 = 3.0;
                 self.bullets.push(Bullet {
                     n: self.n,
-                    pos: Vec2::new(WIDTH as f32 / 2.0, HEIGHT as f32 / 2.0),
+                    pos: SIZE.as_vec2() / 2.0,
                     vel: Vec2::new(c * SPEED, s * SPEED),
                     theta,
                 });
