@@ -1,4 +1,4 @@
-use std::f32::consts::TAU;
+use std::{f32::consts::TAU, num::NonZero};
 
 use rgb::FromSlice;
 use soa_rs::{soa, Soa, Soars};
@@ -16,6 +16,7 @@ pub struct Bullet {
     pos: Vec2,
     vel: Vec2,
     theta: f32,
+    lifetime: Option<NonZero<u32>>,
 }
 
 pub struct Game {
@@ -34,8 +35,6 @@ const SCALE: u32 = 2;
 
 const BULLET_RADIUS: f32 = 4.0;
 const PLAYER_HITBOX: f32 = 4.0;
-
-const DEATH_CLEAR_RADIUS: f32 = 100.0;
 
 impl teenygame::Game for Game {
     fn new(ctxt: &mut Context) -> Self {
@@ -93,7 +92,7 @@ impl teenygame::Game for Game {
         }
 
         let mut cleanup = vec![];
-        for (i, bullet) in self.bullets.iter_mut().enumerate() {
+        for (i, mut bullet) in self.bullets.iter_mut().enumerate() {
             *bullet.pos += *bullet.vel;
             if bullet.pos.x < -(SIZE.x as f32 * 0.5)
                 || bullet.pos.y < -(SIZE.y as f32 * 0.5)
@@ -101,6 +100,16 @@ impl teenygame::Game for Game {
                 || bullet.pos.y >= SIZE.y as f32 * 1.5
             {
                 cleanup.push(i);
+            }
+            if let Some(lifetime) = &mut bullet.lifetime {
+                *lifetime = if let Some(l) =
+                    NonZero::new(u32::from(*lifetime).checked_sub(1).unwrap_or(0))
+                {
+                    l
+                } else {
+                    cleanup.push(i);
+                    continue;
+                };
             }
         }
 
@@ -125,6 +134,7 @@ impl teenygame::Game for Game {
                     n: self.n,
                     pos: SIZE.as_vec2() / 2.0,
                     vel: Vec2::new(c * SPEED, s * SPEED),
+                    lifetime: None,
                     theta,
                 });
                 self.n += 1;
@@ -138,25 +148,13 @@ impl teenygame::Game for Game {
 
         if dead {
             self.deaths += 1;
-            for i in self
-                .bullets
-                .pos()
-                .iter()
-                .enumerate()
-                .filter_map(|(i, pos)| {
-                    if (pos.x - self.player_pos.x).powi(2) + (pos.y - self.player_pos.y).powi(2)
-                        <= DEATH_CLEAR_RADIUS.powi(2)
-                    {
-                        Some(i)
-                    } else {
-                        None
-                    }
-                })
-                .rev()
-                .collect::<Vec<_>>()
-            {
-                self.bullets.swap_remove(i);
+            for (_, bullet) in self.bullets.iter_mut().enumerate() {
+                let dist = bullet.pos.distance(self.player_pos);
+                *bullet.lifetime = Some(
+                    NonZero::new((dist / 30.0) as u32).unwrap_or_else(|| NonZero::new(1).unwrap()),
+                );
             }
+            self.player_pos = Vec2::new(SIZE.x as f32 / 2.0, SIZE.y as f32 * 3.0 / 4.0);
         }
 
         self.elapsed += 1;
