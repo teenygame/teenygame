@@ -29,7 +29,7 @@ mod marker;
 #[cfg(feature = "audio")]
 use audio::Audio;
 use canvasette::Canvas;
-pub use graphics::Graphics;
+use graphics::Graphics;
 use input::InputState;
 use std::time::Duration;
 use time::Instant;

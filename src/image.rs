@@ -25,6 +25,7 @@ impl<Pixel> AsImgRef<Pixel> for Img<Vec<Pixel>> {
 /// Load an image from in-memory bytes.
 ///
 /// This will perform conversion to RGBA8.
+#[cfg(feature = "image")]
 pub fn load_from_memory(
     bytes: &[u8],
 ) -> Result<Img<Vec<crate::graphics::Color>>, image::ImageError> {
