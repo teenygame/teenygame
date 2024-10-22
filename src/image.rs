@@ -3,7 +3,9 @@ use rgb::FromSlice as _;
 /// Load an image from in-memory bytes.
 ///
 /// This will perform conversion to RGBA8.
-pub fn load_from_memory(bytes: &[u8]) -> Result<imgref::ImgVec<rgb::Rgba<u8>>, image::ImageError> {
+pub fn load_from_memory(
+    bytes: &[u8],
+) -> Result<imgref::ImgVec<crate::graphics::Color>, image::ImageError> {
     let img = image::load_from_memory(bytes)?;
 
     Ok(imgref::Img::new(

@@ -49,11 +49,9 @@ impl teenygame::Game for Game {
             deaths: 0,
             n: 0,
             bullets: soa![],
-            bullet_texture: ctxt.gfx.load_texture(
-                image::load_from_memory(include_bytes!("bullets.png"))
-                    .unwrap()
-                    .as_ref(),
-            ),
+            bullet_texture: ctxt
+                .gfx
+                .load_texture(image::load_from_memory(include_bytes!("bullets.png")).unwrap()),
             player_pos: Vec2::new(SIZE.x as f32 / 2.0, SIZE.y as f32 * 3.0 / 4.0),
             elapsed: 0,
             last_draw_time: time::Instant::now(),
