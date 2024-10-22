@@ -2,10 +2,9 @@
 
 use std::sync::Arc;
 
-use crate::math;
+use crate::{image::AsImgRef, math};
 use canvasette::Renderer;
 pub use canvasette::{font, Canvas, Drawable, PreparedText, Texture, TextureSlice};
-use imgref::ImgExt;
 pub use imgref::ImgRef;
 use wgpu::util::DeviceExt;
 use winit::dpi::PhysicalSize;
@@ -169,32 +168,28 @@ impl Graphics {
     }
 
     /// Loads a texture.
-    pub fn load_texture<'a>(&self, img: impl ImgExt<Color>) -> Texture {
-        fn inner(device: &wgpu::Device, queue: &wgpu::Queue, img: ImgRef<Color>) -> Texture {
-            let (buf, width, height) = img.to_contiguous_buf();
+    pub fn load_texture<'a>(&self, img: impl AsImgRef<Color>) -> Texture {
+        let (buf, width, height) = img.as_ref().to_contiguous_buf();
 
-            Texture::from(device.create_texture_with_data(
-                &queue,
-                &wgpu::TextureDescriptor {
-                    label: Some("teenygame: Texture"),
-                    size: wgpu::Extent3d {
-                        width: width as u32,
-                        height: height as u32,
-                        depth_or_array_layers: 1,
-                    },
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    dimension: wgpu::TextureDimension::D2,
-                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                    usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
-                    view_formats: &[],
+        Texture::from(self.device.create_texture_with_data(
+            &self.queue,
+            &wgpu::TextureDescriptor {
+                label: Some("teenygame: Texture"),
+                size: wgpu::Extent3d {
+                    width: width as u32,
+                    height: height as u32,
+                    depth_or_array_layers: 1,
                 },
-                wgpu::util::TextureDataOrder::default(),
-                &bytemuck::cast_slice(&buf),
-            ))
-        }
-
-        inner(&self.device, &self.queue, img.as_ref())
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
+                view_formats: &[],
+            },
+            wgpu::util::TextureDataOrder::default(),
+            &bytemuck::cast_slice(&buf),
+        ))
     }
 
     fn render_to_texture(&mut self, canvas: &Canvas, texture: &wgpu::Texture) {

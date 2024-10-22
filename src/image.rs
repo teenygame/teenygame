@@ -1,11 +1,33 @@
+//! Image support.
+
 use rgb::FromSlice as _;
+
+pub use imgref::Img;
+
+/// Converts an image to a reference to the image.
+pub trait AsImgRef<Pixel> {
+    /// Gets the image as a reference.
+    fn as_ref(&self) -> Img<&[Pixel]>;
+}
+
+impl<Pixel> AsImgRef<Pixel> for Img<&[Pixel]> {
+    fn as_ref(&self) -> Img<&[Pixel]> {
+        *self
+    }
+}
+
+impl<Pixel> AsImgRef<Pixel> for Img<Vec<Pixel>> {
+    fn as_ref(&self) -> Img<&[Pixel]> {
+        imgref::ImgExt::as_ref(self)
+    }
+}
 
 /// Load an image from in-memory bytes.
 ///
 /// This will perform conversion to RGBA8.
 pub fn load_from_memory(
     bytes: &[u8],
-) -> Result<imgref::ImgVec<crate::graphics::Color>, image::ImageError> {
+) -> Result<Img<Vec<crate::graphics::Color>>, image::ImageError> {
     let img = image::load_from_memory(bytes)?;
 
     Ok(imgref::Img::new(
