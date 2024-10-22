@@ -9,10 +9,11 @@ license = "LGPL-3.0-or-later"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["audio", "smol"]
+default = ["audio", "smol", "image"]
 tokio = ["dep:tokio"]
 audio = ["dep:kira"]
 smol = ["dep:smol"]
+image = ["dep:image"]
 
 [dependencies]
 winit = "0.30"
@@ -23,11 +24,11 @@ serde = "1"
 kira = { version = "0.9.5", optional = true }
 wgpu = { version = "22.1.0", features = ["webgl"] }
 canvasette = "0.11.0"
-image = { version = "0.25.2", default-features = false }
 imgref = "1.11.0"
 rgb = "0.8.50"
 bytemuck = "1.19.0"
 glam = "0.29.0"
+image = { version = "0.25.2", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"

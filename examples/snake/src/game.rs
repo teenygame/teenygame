@@ -4,7 +4,7 @@ use teenygame::{
     audio::{PlaybackHandle, Region, Sound, Source},
     graphics::{
         font::{Attrs, Metrics},
-        Color, Drawable as _, Texture, TextureSlice,
+        Canvas, Color, Drawable as _, Texture, TextureSlice,
     },
     input::KeyCode,
     math::*,
@@ -175,11 +175,7 @@ impl teenygame::Game for Game {
         self.elapsed = 0;
     }
 
-    fn draw<'a>(
-        &'a mut self,
-        ctxt: &mut teenygame::Context,
-        canvas: &mut teenygame::graphics::Canvas<'a>,
-    ) {
+    fn draw<'a>(&'a mut self, ctxt: &mut Context, canvas: &mut Canvas<'a>) {
         for (y, row) in self.board.iter().enumerate() {
             for (x, cell) in row.iter().enumerate() {
                 canvas.draw_with_transform(

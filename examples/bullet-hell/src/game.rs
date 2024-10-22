@@ -4,6 +4,7 @@ use rgb::FromSlice;
 use soa_rs::{soa, Soa, Soars};
 use teenygame::{
     graphics::{font, Canvas, Color, Drawable, ImgRef, Texture, TextureSlice},
+    image,
     input::KeyCode,
     math::*,
     time, Context,
@@ -44,17 +45,15 @@ impl teenygame::Game for Game {
 
         ctxt.gfx.add_font(include_bytes!("PixelOperator.ttf"));
 
-        let img = image::load_from_memory(include_bytes!("bullets.png")).unwrap();
-
         Self {
             deaths: 0,
             n: 0,
             bullets: soa![],
-            bullet_texture: ctxt.gfx.load_texture(ImgRef::new(
-                &img.as_rgba8().unwrap().as_rgba(),
-                img.width() as usize,
-                img.height() as usize,
-            )),
+            bullet_texture: ctxt.gfx.load_texture(
+                image::load_from_memory(include_bytes!("bullets.png"))
+                    .unwrap()
+                    .as_ref(),
+            ),
             player_pos: Vec2::new(SIZE.x as f32 / 2.0, SIZE.y as f32 * 3.0 / 4.0),
             elapsed: 0,
             last_draw_time: time::Instant::now(),

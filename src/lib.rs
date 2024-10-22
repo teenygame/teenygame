@@ -19,6 +19,7 @@ pub mod audio;
 pub mod file;
 pub mod futures;
 pub mod graphics;
+pub mod image;
 pub mod input;
 pub mod math;
 pub mod time;
