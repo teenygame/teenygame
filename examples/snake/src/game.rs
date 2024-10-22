@@ -161,7 +161,7 @@ impl teenygame::Game for Game {
                 self.spawn_fruit();
                 self.score += 1;
                 if let Some(handle) = &mut self.bgm_handle {
-                    handle.set_speed((self.score as f64 + 1.0).powf(0.02), Default::default());
+                    handle.set_speed((self.score as f64 + 1.0).powf(0.02));
                 }
                 ctxt.audio.play(&Sound::new(&self.pickup_sfx)).detach();
             }

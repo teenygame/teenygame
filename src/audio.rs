@@ -109,107 +109,38 @@ impl Drop for PlaybackHandle {
         if self.0.is_none() {
             return;
         }
-        self.stop(Tween::default());
-    }
-}
-
-/// Easing motion of a tween.
-#[derive(Clone, Copy, Default)]
-pub enum Easing {
-    /// $f(x) = x$
-    #[default]
-    Linear,
-
-    /// $f(x) = x^k$
-    InPowi(i32),
-
-    /// $f(x) = 1 - x^{1 - k}$
-    OutPowi(i32),
-
-    /// $f(x) = \begin{cases} \frac{(2x)^k}{2} & \text{if }x < 0.5\\\\ \frac{1 - (2 - 2x)^{k} + 1}{2} & \text{otherwise}\end{cases}$
-    InOutPowi(i32),
-
-    /// $f(x) = x^k$ (64-bit float precision)
-    InPowf(f64),
-
-    /// $f(x) = 1 - x^{1 - k}$ (64-bit float precision)
-    OutPowf(f64),
-
-    /// $f(x) = \begin{cases} \frac{(2x)^k}{2} & \text{if }x < 0.5\\\\ \frac{1 - (2 - 2x)^{k} + 1}{2} & \text{otherwise}\end{cases}$ (64-bit float precision)
-    InOutPowf(f64),
-}
-
-impl Easing {
-    fn into_impl(self) -> kira::tween::Easing {
-        match self {
-            Self::Linear => kira::tween::Easing::Linear,
-            Self::InPowi(k) => kira::tween::Easing::InPowi(k),
-            Self::OutPowi(k) => kira::tween::Easing::OutPowi(k),
-            Self::InOutPowi(k) => kira::tween::Easing::InOutPowi(k),
-            Self::InPowf(k) => kira::tween::Easing::InPowf(k),
-            Self::OutPowf(k) => kira::tween::Easing::OutPowf(k),
-            Self::InOutPowf(k) => kira::tween::Easing::InOutPowf(k),
-        }
-    }
-}
-
-/// Describes a transition between values.
-#[derive(Clone, Copy)]
-pub struct Tween {
-    /// Duration of the tween.
-    pub duration: Duration,
-
-    /// Easing function of the tween.
-    pub easing: Easing,
-}
-
-impl Tween {
-    fn into_impl(self) -> kira::tween::Tween {
-        kira::tween::Tween {
-            duration: self.duration,
-            easing: self.easing.into_impl(),
-            ..Default::default()
-        }
-    }
-}
-
-impl Default for Tween {
-    fn default() -> Self {
-        Self {
-            duration: Duration::from_millis(10),
-            easing: Easing::Linear,
-        }
+        self.stop();
     }
 }
 
 impl PlaybackHandle {
     /// Stops playback.
-    pub fn stop(&mut self, tween: Tween) {
-        self.0.as_mut().unwrap().stop(tween.into_impl());
+    pub fn stop(&mut self) {
+        self.0.as_mut().unwrap().stop(kira::tween::Tween::default());
     }
 
     /// Set panning of the audio, where -1.0 is hard left and 1.0 is hard right.
-    pub fn set_panning(&mut self, panning: f64, tween: Tween) {
+    pub fn set_panning(&mut self, panning: f64) {
         self.0
             .as_mut()
             .unwrap()
-            .set_panning((panning - 0.5) * 2.0, tween.into_impl());
+            .set_panning((panning - 0.5) * 2.0, kira::tween::Tween::default());
     }
 
     /// Set volume of the audio, where the volume is the multiplier of the amplitude.
-    pub fn set_volume(&mut self, volume: f64, tween: Tween) {
+    pub fn set_volume(&mut self, volume: f64) {
         self.0
             .as_mut()
             .unwrap()
-            .set_volume(Volume::Amplitude(volume), tween.into_impl());
+            .set_volume(Volume::Amplitude(volume), kira::tween::Tween::default());
     }
 
     /// Set speed of the audio, where the speed is the multiplier of the play speed.
-    pub fn set_speed(&mut self, speed: f64, tween: Tween) {
+    pub fn set_speed(&mut self, speed: f64) {
         self.0
             .as_mut()
             .unwrap()
-            .set_playback_rate(PlaybackRate::Factor(speed), tween.into_impl());
+            .set_playback_rate(PlaybackRate::Factor(speed), kira::tween::Tween::default());
     }
 
     /// Detaches this playback such that it will continue playing.

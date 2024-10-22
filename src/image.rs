@@ -29,9 +29,15 @@ impl<Pixel> AsImgRef<Pixel> for Img<Vec<Pixel>> {
 pub fn load_from_memory(
     bytes: &[u8],
 ) -> Result<Img<Vec<crate::graphics::Color>>, image::ImageError> {
-    let img = image::load_from_memory(bytes)?;
+    Ok(load_from_image(&image::load_from_memory(bytes)?)?)
+}
 
-    Ok(imgref::Img::new(
+/// Load an image from a [`image::DynamicImage`].
+#[cfg(feature = "image")]
+pub fn load_from_image(
+    img: &image::DynamicImage,
+) -> Result<Img<Vec<crate::graphics::Color>>, image::ImageError> {
+    Ok(Img::new(
         img.to_rgba8().as_rgba().to_vec(),
         img.width() as usize,
         img.height() as usize,
