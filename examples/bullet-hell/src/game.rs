@@ -1,9 +1,8 @@
 use std::{f32::consts::TAU, num::NonZero};
 
-use rgb::FromSlice;
 use soa_rs::{soa, Soa, Soars};
 use teenygame::{
-    graphics::{font, Canvas, Color, Drawable, ImgRef, Texture, TextureSlice},
+    graphics::{font, Canvas, Color, Drawable, Texture, TextureSlice},
     image,
     input::KeyCode,
     math::*,
@@ -11,7 +10,7 @@ use teenygame::{
 };
 
 #[derive(Soars)]
-pub struct Bullet {
+struct Bullet {
     n: usize,
     pos: Vec2,
     vel: Vec2,
@@ -27,6 +26,20 @@ pub struct Game {
     player_pos: Vec2,
     elapsed: usize,
     last_draw_time: time::Instant,
+}
+
+struct TextureSlices<'a> {
+    bullet: TextureSlice<'a>,
+    player: TextureSlice<'a>,
+}
+
+impl<'a> TextureSlices<'a> {
+    fn new(parent: TextureSlice<'a>) -> Option<Self> {
+        Some(Self {
+            bullet: parent.slice(ivec2(0, 272), uvec2(16, 32))?,
+            player: parent.slice(ivec2(0, 16), uvec2(16, 16))?,
+        })
+    }
 }
 
 const SIZE: UVec2 = uvec2(1024, 1024);
@@ -162,14 +175,7 @@ impl teenygame::Game for Game {
 
     fn draw<'a>(&'a mut self, ctxt: &mut Context, canvas: &mut Canvas<'a>) {
         let start_time = time::Instant::now();
-
-        let bullet_texture_slice = TextureSlice::from(&self.bullet_texture)
-            .slice(ivec2(0, 272), uvec2(16, 32))
-            .unwrap();
-
-        let player_texture_slice = TextureSlice::from(&self.bullet_texture)
-            .slice(ivec2(0, 16), uvec2(16, 16))
-            .unwrap();
+        let slices = TextureSlices::new(TextureSlice::from(&self.bullet_texture)).unwrap();
 
         for (n, (pos, theta)) in self
             .bullets
@@ -184,26 +190,20 @@ impl teenygame::Game for Game {
             }
             .to_rgb();
 
-            let tsize = bullet_texture_slice.size();
             canvas.draw_with_transform(
-                bullet_texture_slice.tinted(Color::new(color.r, color.g, color.b, 0xff)),
+                slices
+                    .bullet
+                    .tinted(Color::new(color.r, color.g, color.b, 0xff)),
                 Affine2::from_scale(vec2(SCALE as f32, SCALE as f32))
                     * Affine2::from_translation(vec2(pos.x, pos.y))
                     * Affine2::from_angle(theta + TAU / 4.0)
-                    * Affine2::from_translation(vec2(
-                        -(tsize.x as f32) / 2.0,
-                        -(tsize.y as f32) / 2.0,
-                    )),
+                    * Affine2::from_translation(-slices.bullet.size().as_vec2() / 2.0),
             );
 
-            let tsize = player_texture_slice.size();
             canvas.draw_with_transform(
-                player_texture_slice,
+                slices.player,
                 Affine2::from_scale(vec2(SCALE as f32, SCALE as f32))
-                    * Affine2::from_translation(vec2(
-                        -(tsize.x as f32) / 2.0,
-                        -(tsize.y as f32) / 2.0,
-                    ))
+                    * Affine2::from_translation(-slices.player.size().as_vec2() / 2.0)
                     * Affine2::from_translation(vec2(self.player_pos.x, self.player_pos.y)),
             );
         }
