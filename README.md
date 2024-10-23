@@ -18,6 +18,30 @@ It's designed for 2D games with a focus on providing a way to draw graphics, pla
 - ⚠️ **iOS:** Gets stuck after rendering first frame. No support for app lifecycle (e.g. suspend).
 - ❓ **Android:** Untested.
 
+### Web
+
+You can run games in your browser using `wasm-server-runner`:
+
+First install it:
+
+```sh
+cargo install wasm-server-runner
+```
+
+Then set in up in your `.cargo/config.toml` in either your project or home folder:
+
+```toml
+[target.wasm32-unknown-unknown]
+runner = "wasm-server-runner"
+```
+
+You can now run your game like any other Rust binary target:
+
+```sh
+cargo run --target wasm32-unknown-unknown
+```
+
 ## Examples
 
 - [Snake](examples/snake): A simple Snake game.
+- [Bullet Hell](examples/bullet-hell): A bullet hell game.
