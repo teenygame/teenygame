@@ -131,14 +131,13 @@ where
             use wasm_bindgen::JsCast;
             use winit::platform::web::WindowAttributesExtWebSys;
 
-            let canvas = web_sys::window()
-                .unwrap()
-                .document()
-                .unwrap()
-                .get_element_by_id("canvas")
+            let document = web_sys::window().unwrap().document().unwrap();
+            let canvas = document
+                .create_element("canvas")
                 .unwrap()
                 .dyn_into::<web_sys::HtmlCanvasElement>()
                 .unwrap();
+            document.body().unwrap().append_child(&canvas).unwrap();
 
             window_attrs = window_attrs.with_canvas(Some(canvas));
         }

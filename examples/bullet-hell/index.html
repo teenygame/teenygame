@@ -38,7 +38,7 @@
                 fill: #fff;
             }
 
-            #canvas {
+            body > canvas {
                 border: 1px solid white;
             }
         </style>
@@ -59,9 +59,6 @@
             const startButton = document.getElementById("start");
             startButton.disabled = false;
             startButton.onclick = () => {
-                const canvas = document.createElement("canvas");
-                canvas.id = "canvas";
-                document.body.appendChild(canvas);
                 document.body.removeChild(startButton);
                 init();
             };

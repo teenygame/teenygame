@@ -207,12 +207,12 @@ impl teenygame::Game for Game {
             let prepared_game_over =
                 ctxt.gfx
                     .prepare_text("GAME OVER", Metrics::relative(128.0, 1.0), Attrs::default());
-            let bbox = prepared_game_over.bounding_box();
+            let game_over_size = prepared_game_over.size();
             canvas.draw(
                 prepared_game_over.tinted(Color::new(0xff, 0x00, 0x00, 0xff)),
                 vec2(
-                    (BOARD_SIZE.x * CELL_SIZE / 2) as f32 - bbox.x / 2.0,
-                    (BOARD_SIZE.y * CELL_SIZE / 2) as f32 + bbox.y / 2.0,
+                    (BOARD_SIZE.x * CELL_SIZE / 2) as f32 - game_over_size.x / 2.0,
+                    (BOARD_SIZE.y * CELL_SIZE / 2) as f32 + game_over_size.y / 2.0,
                 ),
             );
         }
