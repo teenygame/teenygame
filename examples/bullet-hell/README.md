@@ -1,6 +1,6 @@
 # Bullet Hell
 
-This is an example of everyone's favorite game, Snake!
+This is an example of a bullet hell game.
 
 ## Credits
 

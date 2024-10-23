@@ -2,18 +2,6 @@
 
 This is an example of everyone's favorite game, Snake!
 
-**Running on desktop:**
-
-```sh
-cargo run
-```
-
-**Running on web:**
-
-```sh
-wasm-pack build && vite build
-```
-
 ## Credits
 
 - Font is [Pixel Operator](https://www.dafont.com/pixel-operator.font).
