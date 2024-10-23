@@ -94,7 +94,7 @@ impl teenygame::Game for Game {
         if self.elapsed % 2 == 0 {
             let t = self.elapsed as f32 / 100.0;
             let theta_base = t.sin() * 6.0;
-            const REPEATS: usize = 60;
+            const REPEATS: usize = 120;
             for i in 0..REPEATS {
                 let theta2 = i as f32 / REPEATS as f32 * TAU;
                 let theta = theta_base + theta2;
@@ -121,14 +121,24 @@ impl teenygame::Game for Game {
         let start_time = time::Instant::now();
         let slices = TextureSlices::new(TextureSlice::from(&self.bullet_texture)).unwrap();
 
-        for (n, (pos, theta)) in self
+        let mut to_draw = self
             .bullets
             .n()
             .iter()
-            .zip(self.bullets.pos().iter().zip(self.bullets.theta()))
-        {
+            .cloned()
+            .zip(
+                self.bullets
+                    .pos()
+                    .iter()
+                    .cloned()
+                    .zip(self.bullets.theta().iter().cloned()),
+            )
+            .collect::<Vec<_>>();
+        to_draw.sort_by_key(|(n, (_, _))| *n);
+
+        for (n, (pos, theta)) in to_draw {
             let color = coolor::Hsl {
-                h: *n as f32 / 2.0,
+                h: n as f32 / 5.0,
                 s: 1.0,
                 l: 0.5,
             }

@@ -180,14 +180,24 @@ impl teenygame::Game for Game {
         let start_time = time::Instant::now();
         let slices = TextureSlices::new(TextureSlice::from(&self.bullet_texture)).unwrap();
 
-        for (n, (pos, theta)) in self
+        let mut to_draw = self
             .bullets
             .n()
             .iter()
-            .zip(self.bullets.pos().iter().zip(self.bullets.theta()))
-        {
+            .cloned()
+            .zip(
+                self.bullets
+                    .pos()
+                    .iter()
+                    .cloned()
+                    .zip(self.bullets.theta().iter().cloned()),
+            )
+            .collect::<Vec<_>>();
+        to_draw.sort_by_key(|(n, (_, _))| *n);
+
+        for (n, (pos, theta)) in to_draw {
             let color = coolor::Hsl {
-                h: *n as f32 / 2.0,
+                h: n as f32 / 5.0,
                 s: 1.0,
                 l: 0.5,
             }
