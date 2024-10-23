@@ -36,8 +36,8 @@ struct TextureSlices<'a> {
 impl<'a> TextureSlices<'a> {
     fn new(parent: TextureSlice<'a>) -> Option<Self> {
         Some(Self {
-            bullet: parent.slice(ivec2(0, 272), uvec2(16, 32))?,
-            player: parent.slice(ivec2(0, 16), uvec2(16, 16))?,
+            bullet: parent.slice(ivec2(0, 48), uvec2(16, 16))?,
+            player: parent.slice(ivec2(0, 440), uvec2(8, 8))?,
         })
     }
 }
@@ -63,7 +63,7 @@ impl teenygame::Game for Game {
             bullets: soa![],
             bullet_texture: ctxt
                 .gfx
-                .load_texture(image::load_from_memory(include_bytes!("bullets.png")).unwrap()),
+                .load_texture(image::load_from_memory(include_bytes!("Shot_01.png")).unwrap()),
             player_pos: Vec2::new(SIZE.x as f32 / 2.0, SIZE.y as f32 * 3.0 / 4.0),
             elapsed: 0,
             last_draw_time: time::Instant::now(),
