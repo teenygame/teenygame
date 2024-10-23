@@ -2,10 +2,7 @@ use rand::prelude::IteratorRandom;
 use std::collections::VecDeque;
 use teenygame::{
     audio::{PlaybackHandle, Region, Sound, Source},
-    graphics::{
-        font::{Attrs, Metrics},
-        Canvas, Color, Drawable as _, Texture, TextureSlice,
-    },
+    graphics::{font, Canvas, Color, Drawable as _, Texture, TextureSlice},
     input::KeyCode,
     math::*,
     Context,
@@ -38,6 +35,7 @@ pub struct Game {
     next_direction: IVec2,
     score: u32,
     elapsed: u32,
+    face: font::Attrs,
 }
 
 impl Game {
@@ -72,8 +70,6 @@ impl teenygame::Game for Game {
             board[pos.y as usize][pos.x as usize] = Some(Cell::Snake);
         }
 
-        ctxt.gfx.add_font(include_bytes!("PixelOperator.ttf"));
-
         let bgm_source = Source::load(include_bytes!("8BitCave.wav")).unwrap();
 
         let mut game = Self {
@@ -99,6 +95,10 @@ impl teenygame::Game for Game {
             next_direction: SOUTH,
             score: 0,
             elapsed: 0,
+            face: ctxt
+                .gfx
+                .add_font(include_bytes!("PixelOperator.ttf"))
+                .remove(0),
         };
         game.spawn_fruit();
         game
@@ -196,17 +196,19 @@ impl teenygame::Game for Game {
             ctxt.gfx
                 .prepare_text(
                     format!("Score: {}", self.score),
-                    Metrics::relative(64.0, 1.0),
-                    Attrs::default(),
+                    font::Metrics::relative(64.0, 1.0),
+                    self.face.clone(),
                 )
                 .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
             vec2(16.0, 56.0),
         );
 
         if self.game_over {
-            let prepared_game_over =
-                ctxt.gfx
-                    .prepare_text("GAME OVER", Metrics::relative(128.0, 1.0), Attrs::default());
+            let prepared_game_over = ctxt.gfx.prepare_text(
+                "GAME OVER",
+                font::Metrics::relative(128.0, 1.0),
+                self.face.clone(),
+            );
             let game_over_size = prepared_game_over.size();
             canvas.draw(
                 prepared_game_over.tinted(Color::new(0xff, 0x00, 0x00, 0xff)),

@@ -127,8 +127,8 @@ impl Graphics {
     }
 
     /// Adds a font.
-    pub fn add_font(&mut self, font: &[u8]) {
-        self.canvasette_renderer.add_font(font);
+    pub fn add_font(&mut self, font: &[u8]) -> Vec<font::Attrs> {
+        self.canvasette_renderer.add_font(font)
     }
 
     /// Prepares text for rendering.

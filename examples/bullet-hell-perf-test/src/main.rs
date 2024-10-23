@@ -23,6 +23,7 @@ pub struct Game {
     bullet_texture: Texture,
     elapsed: usize,
     last_draw_time: time::Instant,
+    face: font::Attrs,
 }
 
 struct TextureSlices<'a> {
@@ -47,8 +48,6 @@ impl teenygame::Game for Game {
         window.set_title("Bullet Hell Perf Test");
         window.set_size(SIZE * SCALE, false);
 
-        ctxt.gfx.add_font(include_bytes!("PixelOperator.ttf"));
-
         Self {
             n: 0,
             bullets: soa![],
@@ -57,6 +56,10 @@ impl teenygame::Game for Game {
                 .load_texture(image::load_from_memory(include_bytes!("Shot_01.png")).unwrap()),
             elapsed: 0,
             last_draw_time: time::Instant::now(),
+            face: ctxt
+                .gfx
+                .add_font(include_bytes!("PixelOperator.ttf"))
+                .remove(0),
         }
     }
 
@@ -91,7 +94,7 @@ impl teenygame::Game for Game {
         if self.elapsed % 2 == 0 {
             let t = self.elapsed as f32 / 100.0;
             let theta_base = t.sin() * 6.0;
-            const REPEATS: usize = 45;
+            const REPEATS: usize = 60;
             for i in 0..REPEATS {
                 let theta2 = i as f32 / REPEATS as f32 * TAU;
                 let theta = theta_base + theta2;
@@ -151,7 +154,7 @@ impl teenygame::Game for Game {
                         1.0 / (start_time - self.last_draw_time).as_secs_f32()
                     ),
                     font::Metrics::relative(64.0, 1.0),
-                    font::Attrs::default(),
+                    self.face.clone(),
                 )
                 .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
             vec2(16.0, 56.0),

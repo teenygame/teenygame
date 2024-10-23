@@ -26,6 +26,7 @@ pub struct Game {
     player_pos: Vec2,
     elapsed: usize,
     last_draw_time: time::Instant,
+    face: font::Attrs,
 }
 
 struct TextureSlices<'a> {
@@ -55,8 +56,6 @@ impl teenygame::Game for Game {
         window.set_title("Bullet Hell");
         window.set_size(SIZE * SCALE, false);
 
-        ctxt.gfx.add_font(include_bytes!("PixelOperator.ttf"));
-
         Self {
             deaths: 0,
             n: 0,
@@ -67,6 +66,10 @@ impl teenygame::Game for Game {
             player_pos: Vec2::new(SIZE.x as f32 / 2.0, SIZE.y as f32 * 3.0 / 4.0),
             elapsed: 0,
             last_draw_time: time::Instant::now(),
+            face: ctxt
+                .gfx
+                .add_font(include_bytes!("PixelOperator.ttf"))
+                .remove(0),
         }
     }
 
@@ -218,7 +221,7 @@ impl teenygame::Game for Game {
                         1.0 / (start_time - self.last_draw_time).as_secs_f32()
                     ),
                     font::Metrics::relative(64.0, 1.0),
-                    font::Attrs::default(),
+                    self.face.clone(),
                 )
                 .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
             vec2(16.0, 56.0),
