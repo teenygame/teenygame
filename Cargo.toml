@@ -63,4 +63,8 @@ targets = [
 ]
 
 [workspace]
-members = ["examples/bullet-hell", "examples/snake"]
+members = [
+    "examples/bullet-hell",
+    "examples/bullet-hell-perf-test",
+    "examples/snake",
+]

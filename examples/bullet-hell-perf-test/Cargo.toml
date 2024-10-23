@@ -1,0 +1,20 @@
+[package]
+name = "bullet-hell-perf-test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+teenygame = { path = "../.." }
+rand = "0.8.5"
+soa-rs = "0.7.2"
+image = { version = "0.25.2", default-features = false, features = ["png"] }
+rgb = "0.8.50"
+coolor = "1.0.0"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2.84"
+getrandom = { version = "*", features = ["js"] }
+
+[package.metadata.bundle]
+name = "Bullet Hell"
+identifier = "io.github.teenygame.examples.bullet-hell"
