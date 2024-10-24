@@ -137,12 +137,11 @@ where
             .expect("failed to create window");
 
         let event_loop_proxy = self.event_loop_proxy.clone();
-        let fut = async move {
+        futures::block_on_or_spawn_local(async move {
             assert!(event_loop_proxy
                 .send_event(UserEvent::GraphicsState(Graphics::new(window).await))
                 .is_ok());
-        };
-        futures::block_on_or_spawn_local(fut);
+        });
     }
 
     fn window_event(
