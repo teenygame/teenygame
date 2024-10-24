@@ -94,7 +94,7 @@ impl teenygame::Game for Game {
         if self.elapsed % 2 == 0 {
             let t = self.elapsed as f32 / 100.0;
             let theta_base = t.sin() * 6.0;
-            const REPEATS: usize = 120;
+            const REPEATS: usize = 180;
             for i in 0..REPEATS {
                 let theta2 = i as f32 / REPEATS as f32 * TAU;
                 let theta = theta_base + theta2;
