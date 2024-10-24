@@ -193,8 +193,7 @@ impl Graphics {
     }
 
     fn render_to_texture(&mut self, canvas: &Canvas, texture: &wgpu::Texture) {
-        let prepared = self
-            .canvasette_renderer
+        self.canvasette_renderer
             .prepare(&self.device, &self.queue, texture.size(), canvas)
             .unwrap();
 
@@ -221,7 +220,7 @@ impl Graphics {
                 })],
                 ..Default::default()
             });
-            self.canvasette_renderer.render(&mut rpass, &prepared);
+            self.canvasette_renderer.render(&mut rpass);
         }
 
         self.queue.submit(Some(encoder.finish()));

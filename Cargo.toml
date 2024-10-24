@@ -23,7 +23,7 @@ thiserror = "1"
 serde = "1"
 kira = { version = "0.9.5", optional = true }
 wgpu = { version = "22.1.0", features = ["webgl"] }
-canvasette = "0.12.1"
+canvasette = "0.13.0"
 imgref = "1.11.0"
 rgb = "0.8.50"
 bytemuck = "1.19.0"
