@@ -11,8 +11,8 @@ pub struct Contact(u64);
 
 /// Touch state.
 pub struct Touch {
-    last_contacts: HashMap<Contact, PhysicalPosition<f64>>,
-    contacts: HashMap<Contact, PhysicalPosition<f64>>,
+    last_held_contacts: HashMap<Contact, PhysicalPosition<f64>>,
+    held_contacts: HashMap<Contact, PhysicalPosition<f64>>,
     next_contact_id: u64,
     ids_to_contacts: HashMap<u64, Contact>,
 }
@@ -20,8 +20,8 @@ pub struct Touch {
 impl Touch {
     fn new() -> Self {
         Self {
-            contacts: HashMap::new(),
-            last_contacts: HashMap::new(),
+            held_contacts: HashMap::new(),
+            last_held_contacts: HashMap::new(),
             next_contact_id: 0,
             ids_to_contacts: HashMap::new(),
         }
@@ -35,30 +35,28 @@ impl Touch {
 
     /// Iterates over all held contacts.
     pub fn held_contacts(&self) -> impl Iterator<Item = Contact> + '_ {
-        self.contacts.keys().cloned()
+        self.held_contacts.keys().cloned()
     }
 
     /// Iterates over all contacts that were just pressed.
     pub fn pressed_contacts(&self) -> impl Iterator<Item = Contact> + '_ {
-        let last_contacts = self.last_contacts.keys().cloned().collect::<HashSet<_>>();
-        self.contacts
+        self.held_contacts
             .keys()
             .cloned()
-            .filter(move |contact| !last_contacts.contains(contact))
+            .filter(move |contact| !self.last_held_contacts.contains_key(contact))
     }
 
     /// Iterates over all contacts that were just released.
     pub fn released_contacts(&self) -> impl Iterator<Item = Contact> + '_ {
-        let contacts = self.contacts.keys().cloned().collect::<HashSet<_>>();
-        self.last_contacts
+        self.last_held_contacts
             .keys()
             .cloned()
-            .filter(move |contact| !contacts.contains(contact))
+            .filter(move |contact| !self.held_contacts.contains_key(contact))
     }
 
     /// Gets the position of a contact, or None if the contact was already lifted from the screen.
     pub fn contact_position(&self, contact: Contact) -> Option<math::Vec2> {
-        self.contacts
+        self.held_contacts
             .get(&contact)
             .map(|pos| math::Vec2::new(pos.x as f32, pos.y as f32))
     }
@@ -66,62 +64,84 @@ impl Touch {
     pub(crate) fn handle_touch_start(&mut self, id: u64, location: PhysicalPosition<f64>) {
         let contact = self.next_contact();
         self.ids_to_contacts.insert(id, contact);
-        self.contacts.insert(contact, location);
+        self.held_contacts.insert(contact, location);
     }
 
     pub(crate) fn handle_touch_move(&mut self, id: u64, location: PhysicalPosition<f64>) {
-        self.contacts.insert(self.ids_to_contacts[&id], location);
+        self.held_contacts
+            .insert(self.ids_to_contacts[&id], location);
     }
 
     pub(crate) fn handle_touch_end(&mut self, id: u64) {
-        self.contacts.remove(&self.ids_to_contacts[&id]);
+        self.held_contacts.remove(&self.ids_to_contacts[&id]);
         self.ids_to_contacts.remove(&id);
     }
 
     fn update(&mut self) {
-        self.last_contacts.clone_from(&self.contacts);
+        self.last_held_contacts.clone_from(&self.held_contacts);
     }
 }
 
 /// Keyboard state.
 pub struct Keyboard {
-    last_keys_held: HashSet<KeyCode>,
-    keys_held: HashSet<KeyCode>,
+    held_keys: HashSet<KeyCode>,
+    last_held_keys: HashSet<KeyCode>,
 }
 
 impl Keyboard {
     fn new() -> Self {
         Self {
-            last_keys_held: HashSet::new(),
-            keys_held: HashSet::new(),
+            held_keys: HashSet::new(),
+            last_held_keys: HashSet::new(),
         }
+    }
+
+    /// Iterates over all held keys.
+    pub fn held_keys(&self) -> impl Iterator<Item = KeyCode> + '_ {
+        self.held_keys.iter().cloned()
+    }
+
+    /// Iterates over all keys that were just pressed.
+    pub fn pressed_keys(&self) -> impl Iterator<Item = KeyCode> + '_ {
+        self.held_keys
+            .iter()
+            .cloned()
+            .filter(move |contact| !self.last_held_keys.contains(contact))
+    }
+
+    /// Iterates over all keys that were just released.
+    pub fn released_keys(&self) -> impl Iterator<Item = KeyCode> + '_ {
+        self.last_held_keys
+            .iter()
+            .cloned()
+            .filter(move |contact| !self.held_keys.contains(contact))
     }
 
     /// Checks if the key was just pressed.
     pub fn is_key_pressed(&self, key: KeyCode) -> bool {
-        !self.last_keys_held.contains(&key) && self.keys_held.contains(&key)
+        !self.last_held_keys.contains(&key) && self.held_keys.contains(&key)
     }
 
     /// Checks if the key was just released.
     pub fn is_key_released(&self, key: KeyCode) -> bool {
-        self.last_keys_held.contains(&key) && !self.keys_held.contains(&key)
+        self.last_held_keys.contains(&key) && !self.held_keys.contains(&key)
     }
 
     /// Checks if the key is currently being held down.
     pub fn is_key_held(&self, key: KeyCode) -> bool {
-        self.keys_held.contains(&key)
+        self.held_keys.contains(&key)
     }
 
     pub(crate) fn handle_key_up(&mut self, key: KeyCode) {
-        self.keys_held.remove(&key);
+        self.held_keys.remove(&key);
     }
 
     pub(crate) fn handle_key_down(&mut self, key: KeyCode) {
-        self.keys_held.insert(key);
+        self.held_keys.insert(key);
     }
 
     fn update(&mut self) {
-        self.last_keys_held.clone_from(&self.keys_held);
+        self.last_held_keys.clone_from(&self.held_keys);
     }
 }
 
