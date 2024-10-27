@@ -41,7 +41,7 @@ pub fn spawn(fut: impl Future<Output = ()> + WasmNotSend + 'static) {
 pub fn block_on_or_spawn_local(fut: impl Future<Output = ()> + 'static) {
     #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
     {
-        tokio::task::block_on(fut);
+        tokio::runtime::Handle::current().block_on(fut);
         return;
     }
 
