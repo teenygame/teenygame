@@ -144,7 +144,7 @@ impl teenygame::Game for Game {
             }
             .to_rgb();
 
-            canvas.draw_with_transform(
+            canvas.draw(
                 slices
                     .bullet
                     .tinted(Color::new(color.r, color.g, color.b, 0xff)),
@@ -167,7 +167,7 @@ impl teenygame::Game for Game {
                     self.face.clone(),
                 )
                 .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
-            vec2(16.0, 56.0),
+            translation(16.0, 56.0),
         );
 
         self.last_draw_time = start_time;
