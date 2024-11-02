@@ -19,7 +19,7 @@ struct Bullet {
 }
 
 #[teenygame::main]
-pub struct Game {
+struct Game {
     deaths: usize,
     n: usize,
     bullets: Soa<Bullet>,

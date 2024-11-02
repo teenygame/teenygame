@@ -18,7 +18,7 @@ struct Bullet {
 }
 
 #[teenygame::main]
-pub struct Game {
+struct Game {
     n: usize,
     bullets: Soa<Bullet>,
     bullet_texture: Texture,
