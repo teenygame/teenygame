@@ -26,7 +26,7 @@ pub mod time;
 
 mod marker;
 
-pub use teenygame_macro::main;
+pub use teenygame_macro::game;
 
 #[cfg(feature = "audio")]
 use audio::Audio;
@@ -307,7 +307,7 @@ pub trait Game {
 /// - If enabled and running on a native platform, start the Tokio runtime.
 /// - Starts the event loop and hands over control.
 ///
-/// You can either manually call this in your `main` function, or you can annotate your `Game` struct with the [`main`] macro.
+/// You can either manually call this in your `main` function, or you can annotate your `Game` struct with the [`game`] macro.
 pub fn run<G>()
 where
     G: Game,

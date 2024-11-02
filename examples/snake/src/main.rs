@@ -23,7 +23,7 @@ const SOUTH: IVec2 = ivec2(0, 1);
 const EAST: IVec2 = ivec2(1, 0);
 const WEST: IVec2 = ivec2(-1, 0);
 
-#[teenygame::main]
+#[teenygame::game]
 struct Game {
     texture: Texture,
     pickup_sfx: Source,

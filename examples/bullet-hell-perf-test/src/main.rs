@@ -17,7 +17,7 @@ struct Bullet {
     lifetime: Option<NonZero<u32>>,
 }
 
-#[teenygame::main]
+#[teenygame::game]
 struct Game {
     n: usize,
     bullets: Soa<Bullet>,
