@@ -190,7 +190,9 @@ where
                 );
                 gfx.render(&canvas);
             }
-            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::CloseRequested => {
+                event_loop.exit();
+            }
             WindowEvent::KeyboardInput {
                 event:
                     KeyEvent {
@@ -302,19 +304,6 @@ pub trait Game {
 /// - Create the event loop.
 /// - If enabled and running on a native platform, start the Tokio runtime.
 /// - Starts the event loop and hands over control.
-///
-/// For example, on native platforms:
-/// ```
-/// fn main() { run::<Game>(); }
-/// ```
-///
-/// And on WASM:
-/// ```
-/// #[wasm_bindgen::prelude::wasm_bindgen]
-/// pub fn init() { run::<Game>(); }
-/// ```
-///
-/// Easy!
 pub fn run<G>()
 where
     G: Game,
