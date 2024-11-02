@@ -44,7 +44,7 @@ use winit::{
 };
 
 enum UserEvent {
-    GraphicsState(Graphics),
+    GraphicsReady(Graphics),
 }
 
 struct Application<G> {
@@ -141,7 +141,7 @@ where
         let event_loop_proxy = self.event_loop_proxy.clone();
         futures::block_on_or_spawn_local(async move {
             assert!(event_loop_proxy
-                .send_event(UserEvent::GraphicsState(Graphics::new(window).await))
+                .send_event(UserEvent::GraphicsReady(Graphics::new(window).await))
                 .is_ok());
         });
     }
@@ -248,7 +248,7 @@ where
 
     fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, event: UserEvent) {
         match event {
-            UserEvent::GraphicsState(mut gfx) => {
+            UserEvent::GraphicsReady(mut gfx) => {
                 #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
                 let _guard = self.tokio_rt.enter();
                 self.game = Some(G::new(&mut Context {
