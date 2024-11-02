@@ -144,19 +144,19 @@ impl teenygame::Game for Game {
 
         self.direction = self.next_direction;
 
-        let head = *self.snake.back().unwrap();
+        let head = *self.snake.front().unwrap();
 
         let head2 = head.as_ivec2() + self.direction;
         let head2 = uvec2(
             head2.x.rem_euclid(BOARD_SIZE.x as i32) as u32,
             head2.y.rem_euclid(BOARD_SIZE.y as i32) as u32,
         );
-        self.snake.push_back(head2.into());
+        self.snake.push_front(head2.into());
 
         match self.board[head2.y as usize][head2.x as usize] {
             None => {
-                let ohead = self.snake.pop_front().unwrap();
-                self.board[ohead.y as usize][ohead.x as usize] = None;
+                let tail = self.snake.pop_back().unwrap();
+                self.board[tail.y as usize][tail.x as usize] = None;
             }
             Some(Cell::Fruit) => {
                 self.spawn_fruit();
