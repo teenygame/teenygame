@@ -1,7 +1,5 @@
 //! Image support.
 
-use rgb::FromSlice as _;
-
 pub use imgref::Img;
 
 /// Converts an image to a reference to the image.
@@ -38,7 +36,7 @@ pub fn load_from_image(
     img: &image::DynamicImage,
 ) -> Result<Img<Vec<crate::graphics::Color>>, image::ImageError> {
     Ok(Img::new(
-        img.to_rgba8().as_rgba().to_vec(),
+        bytemuck::cast_slice(&img.to_rgba8()).to_vec(),
         img.width() as usize,
         img.height() as usize,
     ))
