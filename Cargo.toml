@@ -29,6 +29,7 @@ rgb = "0.8.50"
 bytemuck = "1.19.0"
 glam = "0.29.0"
 image = { version = "0.25.2", optional = true }
+teenygame-macro = { path = "./macro" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
@@ -67,4 +68,5 @@ members = [
     "examples/bullet-hell",
     "examples/bullet-hell-perf-test",
     "examples/snake",
+    "macro",
 ]

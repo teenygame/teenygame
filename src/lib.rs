@@ -26,6 +26,8 @@ pub mod time;
 
 mod marker;
 
+pub use teenygame_macro::main;
+
 #[cfg(feature = "audio")]
 use audio::Audio;
 use canvasette::Canvas;
@@ -304,6 +306,8 @@ pub trait Game {
 /// - Create the event loop.
 /// - If enabled and running on a native platform, start the Tokio runtime.
 /// - Starts the event loop and hands over control.
+///
+/// You can either manually call this in your `main` function, or you can annotate your `Game` struct with the [`main`] macro.
 pub fn run<G>()
 where
     G: Game,

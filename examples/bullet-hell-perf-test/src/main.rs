@@ -17,6 +17,7 @@ struct Bullet {
     lifetime: Option<NonZero<u32>>,
 }
 
+#[teenygame::main]
 pub struct Game {
     n: usize,
     bullets: Soa<Bullet>,
@@ -172,8 +173,4 @@ impl teenygame::Game for Game {
 
         self.last_draw_time = start_time;
     }
-}
-
-fn main() {
-    teenygame::run::<Game>();
 }

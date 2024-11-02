@@ -1,0 +1,13 @@
+[package]
+name = "teenygame-macro"
+description = "Macros for teenygame (implementation detail)"
+version = "0.1.0"
+edition = "2021"
+license = "LGPL-3.0-or-later"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1.0"
+syn = "2.0"
