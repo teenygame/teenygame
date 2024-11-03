@@ -270,32 +270,27 @@ impl<'a> Window<'a> {
 }
 
 /// A lazy texture that is uploaded to the GPU on first use.
-pub struct LazyTexture(std::sync::Mutex<LazyTextureInner>);
+pub struct LazyTexture(LazyTextureInner);
 
 enum LazyTextureInner {
     Cpu(crate::image::Img<Vec<rgb::RGBA8>>),
-    Gpu(std::sync::Arc<canvasette::Texture>),
+    Gpu(canvasette::Texture),
 }
 
 impl LazyTexture {
     /// Creates a lazy texture from an image.
     pub fn new(img: crate::image::Img<Vec<rgb::RGBA8>>) -> Self {
-        Self(std::sync::Mutex::new(LazyTextureInner::Cpu(img)))
+        Self(LazyTextureInner::Cpu(img))
     }
 
     /// Gets the GPU texture, or loads it if not already loaded.
-    pub fn get_or_load_texture(
-        &self,
-        graphics: &Graphics,
-    ) -> impl std::ops::Deref<Target = canvasette::Texture> {
-        let mut inner = self.0.lock().unwrap();
-        match &mut *inner {
-            LazyTextureInner::Cpu(img) => {
-                let texture = std::sync::Arc::new(graphics.load_texture(img.as_ref()));
-                *inner = LazyTextureInner::Gpu(texture.clone());
-                texture
-            }
-            LazyTextureInner::Gpu(texture) => texture.clone(),
+    pub fn get_or_load_texture(&mut self, graphics: &Graphics) -> &canvasette::Texture {
+        if let LazyTextureInner::Cpu(img) = &mut self.0 {
+            self.0 = LazyTextureInner::Gpu(graphics.load_texture(img.as_ref()));
         }
+        let LazyTextureInner::Gpu(texture) = &self.0 else {
+            unreachable!();
+        };
+        texture
     }
 }
