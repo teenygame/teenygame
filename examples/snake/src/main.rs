@@ -26,8 +26,8 @@ const WEST: IVec2 = ivec2(-1, 0);
 #[teenygame::game]
 struct Game {
     texture: Texture,
-    pickup_sfx: Source,
-    game_over_sfx: Source,
+    pickup_sfx: Sound,
+    game_over_sfx: Sound,
     bgm_handle: Option<PlaybackHandle>,
     game_over: bool,
     board: [[Option<Cell>; BOARD_SIZE.x as usize]; BOARD_SIZE.y as usize],
@@ -79,15 +79,15 @@ impl teenygame::Game for Game {
                 1,
                 1,
             )),
-            pickup_sfx: Source::load(include_bytes!("pickup.wav")).unwrap(),
-            game_over_sfx: Source::load(include_bytes!("game_over.wav")).unwrap(),
+            pickup_sfx: Sound::new(Source::load(include_bytes!("pickup.wav")).unwrap()),
+            game_over_sfx: Sound::new(Source::load(include_bytes!("game_over.wav")).unwrap()),
             bgm_handle: Some(ctxt.audio.play(&Sound {
+                source: Source::load(include_bytes!("8BitCave.wav")).unwrap(),
                 loop_region: Some(Region {
                     start: 0,
                     length: bgm_source.num_frames(),
                 }),
                 start_position: 5190,
-                ..Sound::new(&bgm_source)
             })),
             game_over: false,
             board,
@@ -164,11 +164,11 @@ impl teenygame::Game for Game {
                 if let Some(handle) = &mut self.bgm_handle {
                     handle.set_speed((self.score as f64 + 1.0).powf(0.02));
                 }
-                ctxt.audio.play(&Sound::new(&self.pickup_sfx)).detach();
+                ctxt.audio.play(&self.pickup_sfx).detach();
             }
             Some(Cell::Snake) => {
                 self.game_over = true;
-                ctxt.audio.play(&Sound::new(&self.game_over_sfx)).detach();
+                ctxt.audio.play(&self.game_over_sfx).detach();
                 self.bgm_handle.take();
             }
         }

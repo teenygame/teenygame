@@ -77,9 +77,9 @@ impl Source {
 /// A sound.
 ///
 /// This plays the underlying source with various parameters.
-pub struct Sound<'a> {
+pub struct Sound {
     /// The source to play.
-    pub source: &'a Source,
+    pub source: Source,
 
     /// The region to loop infinitely, if any.
     pub loop_region: Option<Region>,
@@ -88,9 +88,9 @@ pub struct Sound<'a> {
     pub start_position: usize,
 }
 
-impl<'a> Sound<'a> {
+impl Sound {
     /// Creates a new Sound with no extra parameters.
-    pub fn new(source: &'a Source) -> Self {
+    pub fn new(source: Source) -> Self {
         Self {
             source,
             loop_region: None,
