@@ -1,7 +1,7 @@
 [package]
 name = "teenygame"
 description = "A real simple multiplatform game framework for Rust"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "LGPL-3.0-or-later"
 
@@ -29,7 +29,7 @@ rgb = "0.8.50"
 bytemuck = "1.19.0"
 glam = "0.29.0"
 image = { version = "0.25.2", optional = true }
-teenygame-macro = { path = "./macro" }
+teenygame-macro = { version = "0.1.0", path = "./macro" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
