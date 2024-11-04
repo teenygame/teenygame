@@ -130,8 +130,7 @@ impl teenygame::Game for Game {
             }
         }
 
-        cleanup.reverse();
-        for i in cleanup {
+        for i in cleanup.into_iter().rev() {
             self.bullets.swap_remove(i);
         }
 
