@@ -29,6 +29,7 @@ rgb = "0.8.50"
 bytemuck = "1.19.0"
 glam = "0.29.0"
 image = { version = "0.25.2", optional = true }
+url = "2.5.3"
 teenygame-macro = { version = "0.1.0", path = "./macro" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
