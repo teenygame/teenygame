@@ -34,16 +34,21 @@ impl Touch {
     }
 
     /// Iterates over all held contacts.
-    pub fn held_contacts(&self) -> impl Iterator<Item = Contact> + '_ {
-        self.held_contacts.keys().cloned()
+    pub fn held_contacts(&self) -> impl Iterator<Item = (Contact, math::Vec2)> + '_ {
+        self.held_contacts
+            .iter()
+            .map(|(contact, pos)| (*contact, math::Vec2::new(pos.x as f32, pos.y as f32)))
     }
 
     /// Iterates over all contacts that were just pressed.
-    pub fn pressed_contacts(&self) -> impl Iterator<Item = Contact> + '_ {
-        self.held_contacts
-            .keys()
-            .cloned()
-            .filter(move |contact| !self.last_held_contacts.contains_key(contact))
+    pub fn pressed_contacts(&self) -> impl Iterator<Item = (Contact, math::Vec2)> + '_ {
+        self.held_contacts.iter().filter_map(|(contact, pos)| {
+            if self.last_held_contacts.contains_key(contact) {
+                Some((*contact, math::Vec2::new(pos.x as f32, pos.y as f32)))
+            } else {
+                None
+            }
+        })
     }
 
     /// Iterates over all contacts that were just released.
@@ -51,7 +56,7 @@ impl Touch {
         self.last_held_contacts
             .keys()
             .cloned()
-            .filter(move |contact| !self.held_contacts.contains_key(contact))
+            .filter(|contact| !self.held_contacts.contains_key(contact))
     }
 
     /// Gets the position of a contact, or None if the contact was already lifted from the screen.
