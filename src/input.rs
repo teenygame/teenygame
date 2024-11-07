@@ -11,7 +11,7 @@ pub struct Contact(u64);
 
 /// Touch state.
 pub struct Touch {
-    last_held_contacts: HashMap<Contact, PhysicalPosition<f64>>,
+    last_held_contacts: HashSet<Contact>,
     held_contacts: HashMap<Contact, PhysicalPosition<f64>>,
     next_contact_id: u64,
     ids_to_contacts: HashMap<u64, Contact>,
@@ -21,7 +21,7 @@ impl Touch {
     fn new() -> Self {
         Self {
             held_contacts: HashMap::new(),
-            last_held_contacts: HashMap::new(),
+            last_held_contacts: HashSet::new(),
             next_contact_id: 0,
             ids_to_contacts: HashMap::new(),
         }
@@ -43,7 +43,7 @@ impl Touch {
     /// Iterates over all contacts that were just pressed.
     pub fn pressed_contacts(&self) -> impl Iterator<Item = (Contact, math::Vec2)> + '_ {
         self.held_contacts.iter().filter_map(|(contact, pos)| {
-            if self.last_held_contacts.contains_key(contact) {
+            if self.last_held_contacts.contains(contact) {
                 Some((*contact, math::Vec2::new(pos.x as f32, pos.y as f32)))
             } else {
                 None
@@ -54,7 +54,7 @@ impl Touch {
     /// Iterates over all contacts that were just released.
     pub fn released_contacts(&self) -> impl Iterator<Item = Contact> + '_ {
         self.last_held_contacts
-            .keys()
+            .iter()
             .cloned()
             .filter(|contact| !self.held_contacts.contains_key(contact))
     }
@@ -83,7 +83,9 @@ impl Touch {
     }
 
     fn update(&mut self) {
-        self.last_held_contacts.clone_from(&self.held_contacts);
+        self.last_held_contacts.clear();
+        self.last_held_contacts
+            .extend(self.held_contacts.keys().cloned());
     }
 }
 
