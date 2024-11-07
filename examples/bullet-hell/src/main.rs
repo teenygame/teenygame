@@ -237,7 +237,7 @@ impl teenygame::Game for Game {
                     self.face.clone(),
                 )
                 .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
-            translation(16.0, 56.0),
+            translate(16.0, 56.0),
         );
 
         self.last_draw_time = start_time;

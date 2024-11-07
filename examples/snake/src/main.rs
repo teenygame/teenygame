@@ -201,7 +201,7 @@ impl teenygame::Game for Game {
                     self.face.clone(),
                 )
                 .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
-            translation(16.0, 56.0),
+            translate(16.0, 56.0),
         );
 
         if self.game_over {
@@ -213,7 +213,7 @@ impl teenygame::Game for Game {
             let game_over_size = prepared_game_over.size();
             canvas.draw(
                 prepared_game_over.tinted(Color::new(0xff, 0x00, 0x00, 0xff)),
-                translation(
+                translate(
                     (BOARD_SIZE.x * CELL_SIZE / 2) as f32 - game_over_size.x / 2.0,
                     (BOARD_SIZE.y * CELL_SIZE / 2) as f32 + game_over_size.y / 2.0,
                 ),
