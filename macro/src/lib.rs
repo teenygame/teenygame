@@ -3,7 +3,7 @@
 /// You can use this to annotate a struct as the game type, e.g.
 ///
 /// ```
-/// #[teenygame::main]
+/// #[teenygame::game]
 /// struct Game;
 ///
 /// impl teenygame::Game for Game {
