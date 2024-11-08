@@ -1,8 +1,6 @@
 //! Various math types and shorthand helpers.
-//!
-//! These are just reexported from [`glam`], along with some helper functions. The re-exports are hidden from the docs, but are all available in this module.
 
-#[doc(hidden)]
+#[doc(no_inline)]
 pub use glam::*;
 
 /// Creates a translation matrix to (x, y).
