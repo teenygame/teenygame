@@ -35,58 +35,23 @@ use graphics::Graphics;
 use input::InputState;
 use std::time::Duration;
 use time::Instant;
+use winit::event::WindowEvent;
 use winit::event::{KeyEvent, TouchPhase};
 use winit::keyboard::PhysicalKey;
-use winit::{
-    application::ApplicationHandler,
-    event::WindowEvent,
-    event_loop::{EventLoop, EventLoopProxy},
-};
-
-enum UserEvent {
-    GraphicsReady(Graphics),
-}
 
 struct Application<G> {
     #[cfg(feature = "audio")]
     audio: Audio,
 
-    gfx: Option<Graphics>,
-
-    event_loop_proxy: EventLoopProxy<UserEvent>,
     input_state: InputState,
-    game: Option<G>,
+    game: G,
+
+    canvasette_renderer: canvasette::Renderer,
 
     #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
     tokio_rt: tokio::runtime::Runtime,
 
     update_ticker: UpdateTicker,
-}
-
-impl<G> Application<G>
-where
-    G: Game,
-{
-    fn new(event_loop: &EventLoop<UserEvent>) -> Self {
-        #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
-        let tokio_rt = tokio::runtime::Runtime::new().unwrap();
-
-        Self {
-            gfx: None,
-
-            #[cfg(feature = "audio")]
-            audio: Audio::new().unwrap(),
-
-            event_loop_proxy: event_loop.create_proxy(),
-            input_state: InputState::new(),
-            game: None,
-
-            #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
-            tokio_rt,
-
-            update_ticker: UpdateTicker::new(G::TICKS_PER_SECOND),
-        }
-    }
 }
 
 struct UpdateTicker {
@@ -120,81 +85,99 @@ impl UpdateTicker {
     }
 }
 
-impl<G> ApplicationHandler<UserEvent> for Application<G>
+impl<G> wginit::Application for Application<G>
 where
     G: Game,
 {
-    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        #[allow(unused_mut)]
-        let mut window_attrs = winit::window::Window::default_attributes().with_title("");
+    type UserEvent = ();
 
-        #[cfg(target_arch = "wasm32")]
-        {
-            use winit::platform::web::WindowAttributesExtWebSys;
-            window_attrs = window_attrs.with_append(true);
+    fn new(
+        gfx: &mut wginit::Graphics,
+        _user_event_sender: wginit::UserEventSender<Self::UserEvent>,
+    ) -> Self {
+        #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
+        let tokio_rt = tokio::runtime::Runtime::new().unwrap();
+
+        #[cfg(feature = "audio")]
+        let mut audio = Audio::new().unwrap();
+
+        let input_state = InputState::new();
+
+        let mut canvasette_renderer = canvasette::Renderer::new(
+            &gfx.device,
+            gfx.surface.get_capabilities(&gfx.adapter).formats[0],
+        );
+
+        Self {
+            game: G::new(&mut Context {
+                input: &input_state,
+                #[cfg(feature = "audio")]
+                audio: &mut audio,
+                gfx: &mut Graphics {
+                    canvasette_renderer: &mut canvasette_renderer,
+                    gfx,
+                },
+            }),
+
+            #[cfg(feature = "audio")]
+            audio,
+            input_state,
+            canvasette_renderer,
+
+            #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
+            tokio_rt,
+
+            update_ticker: UpdateTicker::new(G::TICKS_PER_SECOND),
         }
-
-        let window = event_loop
-            .create_window(window_attrs)
-            .expect("failed to create window");
-
-        let event_loop_proxy = self.event_loop_proxy.clone();
-        futures::block_on_or_spawn_local(async move {
-            assert!(event_loop_proxy
-                .send_event(UserEvent::GraphicsReady(Graphics::new(window).await))
-                .is_ok());
-        });
     }
 
-    fn window_event(
-        &mut self,
-        event_loop: &winit::event_loop::ActiveEventLoop,
-        _window_id: winit::window::WindowId,
-        event: winit::event::WindowEvent,
-    ) {
-        let Some(gfx) = &mut self.gfx else {
-            return;
-        };
+    fn redraw(&mut self, gfx: &wginit::Graphics) {
+        // Allow use of the Tokio runtime from game callbacks.
+        #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
+        let _guard = self.tokio_rt.enter();
 
+        self.update_ticker.start_draw();
+        while self.update_ticker.tick() {
+            self.game.update(&mut Context {
+                input: &self.input_state,
+                #[cfg(feature = "audio")]
+                audio: &mut self.audio,
+                gfx: &mut Graphics {
+                    canvasette_renderer: &mut self.canvasette_renderer,
+                    gfx,
+                },
+            });
+            self.input_state.update();
+        }
+
+        let mut canvas = Canvas::new();
+        self.game.draw(
+            &mut Context {
+                input: &self.input_state,
+                #[cfg(feature = "audio")]
+                audio: &mut self.audio,
+                gfx: &mut Graphics {
+                    canvasette_renderer: &mut self.canvasette_renderer,
+                    gfx,
+                },
+            },
+            &mut canvas,
+        );
+
+        let frame = gfx
+            .surface
+            .get_current_texture()
+            .expect("failed to acquire next swap chain texture");
+
+        graphics::render_to_texture(gfx, &mut self.canvasette_renderer, &canvas, &frame.texture);
+
+        gfx.window.pre_present_notify();
+        frame.present();
+        gfx.window.request_redraw();
+    }
+
+    fn window_event(&mut self, event: &winit::event::WindowEvent) {
         match event {
-            WindowEvent::Resized(size) => {
-                gfx.resize(size);
-            }
-            WindowEvent::RedrawRequested => {
-                // Allow use of the Tokio runtime from game callbacks.
-                #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
-                let _guard = self.tokio_rt.enter();
-
-                let Some(game) = self.game.as_mut() else {
-                    return;
-                };
-
-                self.update_ticker.start_draw();
-                while self.update_ticker.tick() {
-                    game.update(&mut Context {
-                        input: &self.input_state,
-                        #[cfg(feature = "audio")]
-                        audio: &mut self.audio,
-                        gfx,
-                    });
-                    self.input_state.update();
-                }
-
-                let mut canvas = Canvas::new();
-                game.draw(
-                    &mut Context {
-                        input: &self.input_state,
-                        #[cfg(feature = "audio")]
-                        audio: &mut self.audio,
-                        gfx,
-                    },
-                    &mut canvas,
-                );
-                gfx.render(&canvas);
-            }
-            WindowEvent::CloseRequested => {
-                event_loop.exit();
-            }
             WindowEvent::KeyboardInput {
                 event:
                     KeyEvent {
@@ -205,22 +188,22 @@ where
                 ..
             } => match state {
                 winit::event::ElementState::Pressed => {
-                    self.input_state.keyboard.handle_key_down(key_code);
+                    self.input_state.keyboard.handle_key_down(*key_code);
                 }
                 winit::event::ElementState::Released => {
-                    self.input_state.keyboard.handle_key_up(key_code);
+                    self.input_state.keyboard.handle_key_up(*key_code);
                 }
             },
             WindowEvent::MouseInput { state, button, .. } => match state {
                 winit::event::ElementState::Pressed => {
-                    self.input_state.mouse.handle_button_down(button);
+                    self.input_state.mouse.handle_button_down(*button);
                 }
                 winit::event::ElementState::Released => {
-                    self.input_state.mouse.handle_button_up(button);
+                    self.input_state.mouse.handle_button_up(*button);
                 }
             },
             WindowEvent::CursorMoved { position, .. } => {
-                self.input_state.mouse.set_position(Some(position));
+                self.input_state.mouse.set_position(Some(*position));
             }
             WindowEvent::CursorLeft { .. } => {
                 self.input_state.mouse.set_position(None);
@@ -245,22 +228,6 @@ where
             _ => {}
         };
     }
-
-    fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, event: UserEvent) {
-        match event {
-            UserEvent::GraphicsReady(mut gfx) => {
-                #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
-                let _guard = self.tokio_rt.enter();
-                self.game = Some(G::new(&mut Context {
-                    input: &self.input_state,
-                    #[cfg(feature = "audio")]
-                    audio: &mut self.audio,
-                    gfx: &mut gfx,
-                }));
-                self.gfx = Some(gfx);
-            }
-        }
-    }
 }
 
 /// Bag of stuff available to be accessed during [`Game::update`].
@@ -273,7 +240,7 @@ pub struct Context<'a> {
     pub audio: &'a mut Audio,
 
     /// Graphics context.
-    pub gfx: &'a mut Graphics,
+    pub gfx: &'a mut Graphics<'a>,
 }
 
 /// Trait to implement for your game.
@@ -312,20 +279,5 @@ pub fn run<G>()
 where
     G: Game,
 {
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        env_logger::init();
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        console_error_panic_hook::set_once();
-        wasm_logger::init(wasm_logger::Config::default());
-    }
-
-    let event_loop = winit::event_loop::EventLoop::with_user_event()
-        .build()
-        .unwrap();
-    let mut app = Application::<G>::new(&event_loop);
-    event_loop.run_app(&mut app).unwrap();
+    wginit::run::<Application<G>>();
 }
