@@ -92,7 +92,7 @@ where
     type UserEvent = ();
 
     fn new(
-        gfx: &mut wginit::Graphics,
+        gfx: &wginit::Graphics,
         _user_event_sender: wginit::UserEventSender<Self::UserEvent>,
     ) -> Self {
         #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
@@ -176,7 +176,7 @@ where
         gfx.window.request_redraw();
     }
 
-    fn window_event(&mut self, event: &winit::event::WindowEvent) {
+    fn window_event(&mut self, event: winit::event::WindowEvent) {
         match event {
             WindowEvent::KeyboardInput {
                 event:
@@ -188,22 +188,22 @@ where
                 ..
             } => match state {
                 winit::event::ElementState::Pressed => {
-                    self.input_state.keyboard.handle_key_down(*key_code);
+                    self.input_state.keyboard.handle_key_down(key_code);
                 }
                 winit::event::ElementState::Released => {
-                    self.input_state.keyboard.handle_key_up(*key_code);
+                    self.input_state.keyboard.handle_key_up(key_code);
                 }
             },
             WindowEvent::MouseInput { state, button, .. } => match state {
                 winit::event::ElementState::Pressed => {
-                    self.input_state.mouse.handle_button_down(*button);
+                    self.input_state.mouse.handle_button_down(button);
                 }
                 winit::event::ElementState::Released => {
-                    self.input_state.mouse.handle_button_up(*button);
+                    self.input_state.mouse.handle_button_up(button);
                 }
             },
             WindowEvent::CursorMoved { position, .. } => {
-                self.input_state.mouse.set_position(Some(*position));
+                self.input_state.mouse.set_position(Some(position));
             }
             WindowEvent::CursorLeft { .. } => {
                 self.input_state.mouse.set_position(None);

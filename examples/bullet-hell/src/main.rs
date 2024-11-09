@@ -1,4 +1,4 @@
-use std::{f32::consts::TAU, num::NonZero, ops::Deref};
+use std::{f32::consts::TAU, num::NonZero};
 
 use soa_rs::{soa, Soa, Soars};
 use teenygame::{
