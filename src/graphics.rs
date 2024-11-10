@@ -23,7 +23,7 @@ impl Framebuffer {
 
 pub struct Graphics<'a> {
     pub(crate) canvasette_renderer: &'a mut canvasette::Renderer,
-    pub(crate) gfx: &'a wginit::Graphics,
+    pub(crate) gfx: &'a wginit::Graphics<'a>,
 }
 
 pub(crate) fn render_to_texture(
@@ -225,7 +225,7 @@ where
     /// If the graphics device is invalidated, the underlying resource will also be invalidated and a subsequent call to this function will reload it if a new graphics state is provided.
     pub fn get_or_load(&mut self, graphics: &mut Graphics) -> &Resource {
         if let Some(loaded) = &self.loaded {
-            if &graphics.gfx.device as *const _ != loaded.device_ptr {
+            if graphics.gfx.device as *const _ != loaded.device_ptr {
                 self.unload();
             }
         }
@@ -234,7 +234,7 @@ where
             .loaded
             .get_or_insert_with(|| LazyLoaded {
                 ready: Resource::load(graphics, &self.raw),
-                device_ptr: &graphics.gfx.device as *const _,
+                device_ptr: graphics.gfx.device as *const _,
             })
             .ready
     }
