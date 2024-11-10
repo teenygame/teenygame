@@ -279,5 +279,16 @@ pub fn run<G>()
 where
     G: Game,
 {
-    wginit::run::<Application<G>>();
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        env_logger::init();
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        console_error_panic_hook::set_once();
+        wasm_logger::init(wasm_logger::Config::default());
+    }
+
+    wginit::run::<Application<G>>().unwrap();
 }
