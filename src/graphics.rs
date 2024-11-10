@@ -195,3 +195,29 @@ impl LazyTexture {
         texture
     }
 }
+
+/// A lazy font that is added to the graphics context on first use.
+pub struct LazyFont(LazyFontInner);
+
+enum LazyFontInner {
+    Raw(Vec<u8>),
+    Faces(Vec<font::Attrs>),
+}
+
+impl LazyFont {
+    /// Creates a lazy font from bytes.
+    pub fn new(raw: &[u8]) -> Self {
+        Self(LazyFontInner::Raw(raw.to_vec()))
+    }
+
+    /// Gets the font's faces, or loads it if not already loaded.
+    pub fn get_or_load_faces(&mut self, graphics: &mut Graphics) -> &[font::Attrs] {
+        if let LazyFontInner::Raw(raw) = &self.0 {
+            self.0 = LazyFontInner::Faces(graphics.add_font(raw));
+        }
+        let LazyFontInner::Faces(faces) = &self.0 else {
+            unreachable!();
+        };
+        faces
+    }
+}

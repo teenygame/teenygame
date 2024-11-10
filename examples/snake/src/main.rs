@@ -2,7 +2,7 @@ use rand::prelude::IteratorRandom;
 use std::collections::VecDeque;
 use teenygame::{
     audio::{PlaybackHandle, Region, Sound, Source},
-    graphics::{font, Canvas, Color, Drawable as _, Texture, TextureSlice},
+    graphics::{font, Canvas, Color, Drawable as _, LazyFont, LazyTexture, Texture, TextureSlice},
     input::KeyCode,
     math::*,
     Context,
@@ -25,7 +25,7 @@ const WEST: IVec2 = ivec2(-1, 0);
 
 #[teenygame::game]
 struct Game {
-    texture: Texture,
+    texture: LazyTexture,
     pickup_sfx: Sound,
     game_over_sfx: Sound,
     bgm_handle: Option<PlaybackHandle>,
@@ -36,7 +36,7 @@ struct Game {
     next_direction: IVec2,
     score: u32,
     elapsed: u32,
-    face: font::Attrs,
+    font: LazyFont,
 }
 
 impl Game {
@@ -59,11 +59,7 @@ impl Game {
 }
 
 impl teenygame::Game for Game {
-    fn new(ctxt: &mut Context) -> Self {
-        let window = ctxt.gfx.window();
-        window.set_title("Snake");
-        window.set_size(BOARD_SIZE * CELL_SIZE, false);
-
+    fn new() -> Self {
         let mut board = [[None; BOARD_SIZE.x as usize]; BOARD_SIZE.y as usize];
         let snake = VecDeque::from([BOARD_SIZE / 2]);
 
@@ -71,24 +67,15 @@ impl teenygame::Game for Game {
             board[pos.y as usize][pos.x as usize] = Some(Cell::Snake);
         }
 
-        let bgm_source = Source::load(include_bytes!("8BitCave.wav")).unwrap();
-
         let mut game = Self {
-            texture: ctxt.gfx.load_texture(teenygame::graphics::ImgRef::new(
-                &[Color::new(0xff, 0xff, 0xff, 0xff)],
+            texture: LazyTexture::new(teenygame::image::Img::new(
+                vec![Color::new(0xff, 0xff, 0xff, 0xff)],
                 1,
                 1,
             )),
             pickup_sfx: Sound::new(Source::load(include_bytes!("pickup.wav")).unwrap()),
             game_over_sfx: Sound::new(Source::load(include_bytes!("game_over.wav")).unwrap()),
-            bgm_handle: Some(ctxt.audio.play(&Sound {
-                source: Source::load(include_bytes!("8BitCave.wav")).unwrap(),
-                loop_region: Some(Region {
-                    start: 0,
-                    length: bgm_source.num_frames(),
-                }),
-                start_position: 5190,
-            })),
+            bgm_handle: None,
             game_over: false,
             board,
             snake,
@@ -96,13 +83,27 @@ impl teenygame::Game for Game {
             next_direction: SOUTH,
             score: 0,
             elapsed: 0,
-            face: ctxt
-                .gfx
-                .add_font(include_bytes!("PixelOperator.ttf"))
-                .remove(0),
+            font: LazyFont::new(include_bytes!("PixelOperator.ttf")),
         };
         game.spawn_fruit();
         game
+    }
+
+    fn resumed(&mut self, ctxt: &mut Context) {
+        let window = ctxt.gfx.window();
+        window.set_title("Snake");
+        window.set_size(BOARD_SIZE * CELL_SIZE, false);
+
+        let bgm_source = Source::load(include_bytes!("8BitCave.wav")).unwrap();
+
+        self.bgm_handle = Some(ctxt.audio.play(&Sound {
+            source: Source::load(include_bytes!("8BitCave.wav")).unwrap(),
+            loop_region: Some(Region {
+                start: 0,
+                length: bgm_source.num_frames(),
+            }),
+            start_position: 5190,
+        }));
     }
 
     fn update(&mut self, ctxt: &mut Context) {
@@ -177,10 +178,12 @@ impl teenygame::Game for Game {
     }
 
     fn draw<'a>(&'a mut self, ctxt: &mut Context, canvas: &mut Canvas<'a>) {
+        let texture = self.texture.get_or_load_texture(&ctxt.gfx);
+
         for (y, row) in self.board.iter().enumerate() {
             for (x, cell) in row.iter().enumerate() {
                 canvas.draw(
-                    TextureSlice::from(&self.texture).tinted(match cell {
+                    TextureSlice::from(texture).tinted(match cell {
                         None => {
                             continue;
                         }
@@ -193,23 +196,23 @@ impl teenygame::Game for Game {
             }
         }
 
+        let face = self.font.get_or_load_faces(ctxt.gfx)[0].clone();
+
         canvas.draw(
             ctxt.gfx
                 .prepare_text(
                     format!("Score: {}", self.score),
                     font::Metrics::relative(64.0, 1.0),
-                    self.face.clone(),
+                    face.clone(),
                 )
                 .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
             translate(16.0, 56.0),
         );
 
         if self.game_over {
-            let prepared_game_over = ctxt.gfx.prepare_text(
-                "GAME OVER",
-                font::Metrics::relative(128.0, 1.0),
-                self.face.clone(),
-            );
+            let prepared_game_over =
+                ctxt.gfx
+                    .prepare_text("GAME OVER", font::Metrics::relative(128.0, 1.0), face);
             let game_over_size = prepared_game_over.size();
             canvas.draw(
                 prepared_game_over.tinted(Color::new(0xff, 0x00, 0x00, 0xff)),

@@ -2,7 +2,7 @@ use std::{f32::consts::TAU, num::NonZero};
 
 use soa_rs::{soa, Soa, Soars};
 use teenygame::{
-    graphics::{font, Canvas, Color, Drawable, LazyTexture, TextureSlice},
+    graphics::{font, Canvas, Color, Drawable, LazyFont, LazyTexture, TextureSlice},
     image,
     input::KeyCode,
     math::*,
@@ -27,7 +27,7 @@ struct Game {
     player_pos: Vec2,
     elapsed: usize,
     last_draw_time: time::Instant,
-    face: font::Attrs,
+    font: LazyFont,
 }
 
 struct TextureSlices<'a> {
@@ -52,11 +52,7 @@ const BULLET_RADIUS: f32 = 4.0;
 const PLAYER_HITBOX: f32 = 4.0;
 
 impl teenygame::Game for Game {
-    fn new(ctxt: &mut Context) -> Self {
-        let window = ctxt.gfx.window();
-        window.set_title("Bullet Hell");
-        window.set_size(SIZE * SCALE, false);
-
+    fn new() -> Self {
         Self {
             deaths: 0,
             n: 0,
@@ -67,11 +63,14 @@ impl teenygame::Game for Game {
             player_pos: Vec2::new(SIZE.x as f32 / 2.0, SIZE.y as f32 * 3.0 / 4.0),
             elapsed: 0,
             last_draw_time: time::Instant::now(),
-            face: ctxt
-                .gfx
-                .add_font(include_bytes!("PixelOperator.ttf"))
-                .remove(0),
+            font: LazyFont::new(include_bytes!("PixelOperator.ttf")),
         }
+    }
+
+    fn resumed(&mut self, ctxt: &mut Context) {
+        let window = ctxt.gfx.window();
+        window.set_title("Bullet Hell");
+        window.set_size(SIZE * SCALE, false);
     }
 
     fn update(&mut self, ctxt: &mut Context) {
@@ -224,6 +223,8 @@ impl teenygame::Game for Game {
             );
         }
 
+        let face = self.font.get_or_load_faces(ctxt.gfx)[0].clone();
+
         canvas.draw(
             ctxt.gfx
                 .prepare_text(
@@ -234,7 +235,7 @@ impl teenygame::Game for Game {
                         1.0 / (start_time - self.last_draw_time).as_secs_f32()
                     ),
                     font::Metrics::relative(64.0, 1.0),
-                    self.face.clone(),
+                    face,
                 )
                 .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
             translate(16.0, 56.0),

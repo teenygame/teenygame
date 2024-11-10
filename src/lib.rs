@@ -39,6 +39,10 @@ use winit::event::WindowEvent;
 use winit::event::{KeyEvent, TouchPhase};
 use winit::keyboard::PhysicalKey;
 
+struct GraphicsState {
+    canvasette_renderer: canvasette::Renderer,
+}
+
 struct Application<G> {
     #[cfg(feature = "audio")]
     audio: Audio,
@@ -46,7 +50,7 @@ struct Application<G> {
     input_state: InputState,
     game: G,
 
-    canvasette_renderer: canvasette::Renderer,
+    gfx_state: Option<GraphicsState>,
 
     #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
     tokio_rt: tokio::runtime::Runtime,
@@ -91,38 +95,22 @@ where
 {
     type UserEvent = ();
 
-    fn new(
-        gfx: &wginit::Graphics,
-        _user_event_sender: wginit::UserEventSender<Self::UserEvent>,
-    ) -> Self {
+    fn new(_user_event_sender: wginit::UserEventSender<Self::UserEvent>) -> Self {
         #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
         let tokio_rt = tokio::runtime::Runtime::new().unwrap();
 
         #[cfg(feature = "audio")]
-        let mut audio = Audio::new().unwrap();
+        let audio = Audio::new().unwrap();
 
         let input_state = InputState::new();
 
-        let mut canvasette_renderer = canvasette::Renderer::new(
-            &gfx.device,
-            gfx.surface.get_capabilities(&gfx.adapter).formats[0],
-        );
-
         Self {
-            game: G::new(&mut Context {
-                input: &input_state,
-                #[cfg(feature = "audio")]
-                audio: &mut audio,
-                gfx: &mut Graphics {
-                    canvasette_renderer: &mut canvasette_renderer,
-                    gfx,
-                },
-            }),
+            game: G::new(),
+            gfx_state: None,
 
             #[cfg(feature = "audio")]
             audio,
             input_state,
-            canvasette_renderer,
 
             #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
             tokio_rt,
@@ -131,10 +119,33 @@ where
         }
     }
 
+    fn resumed(&mut self, gfx: &wginit::Graphics) {
+        let mut canvasette_renderer = canvasette::Renderer::new(
+            &gfx.device,
+            gfx.surface.get_capabilities(&gfx.adapter).formats[0],
+        );
+
+        self.game.resumed(&mut Context {
+            input: &self.input_state,
+            #[cfg(feature = "audio")]
+            audio: &mut self.audio,
+            gfx: &mut Graphics {
+                canvasette_renderer: &mut canvasette_renderer,
+                gfx,
+            },
+        });
+
+        self.gfx_state = Some(GraphicsState {
+            canvasette_renderer,
+        });
+    }
+
     fn redraw(&mut self, gfx: &wginit::Graphics) {
         // Allow use of the Tokio runtime from game callbacks.
         #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
         let _guard = self.tokio_rt.enter();
+
+        let gfx_state = self.gfx_state.as_mut().unwrap();
 
         self.update_ticker.start_draw();
         while self.update_ticker.tick() {
@@ -143,7 +154,7 @@ where
                 #[cfg(feature = "audio")]
                 audio: &mut self.audio,
                 gfx: &mut Graphics {
-                    canvasette_renderer: &mut self.canvasette_renderer,
+                    canvasette_renderer: &mut gfx_state.canvasette_renderer,
                     gfx,
                 },
             });
@@ -157,7 +168,7 @@ where
                 #[cfg(feature = "audio")]
                 audio: &mut self.audio,
                 gfx: &mut Graphics {
-                    canvasette_renderer: &mut self.canvasette_renderer,
+                    canvasette_renderer: &mut gfx_state.canvasette_renderer,
                     gfx,
                 },
             },
@@ -169,7 +180,12 @@ where
             .get_current_texture()
             .expect("failed to acquire next swap chain texture");
 
-        graphics::render_to_texture(gfx, &mut self.canvasette_renderer, &canvas, &frame.texture);
+        graphics::render_to_texture(
+            gfx,
+            &mut gfx_state.canvasette_renderer,
+            &canvas,
+            &frame.texture,
+        );
 
         gfx.window.pre_present_notify();
         frame.present();
@@ -253,7 +269,10 @@ pub trait Game {
     /// Constructs the game.
     ///
     /// If Tokio support is enabled, the Tokio runtime will be available here.
-    fn new(ctxt: &mut Context) -> Self;
+    fn new() -> Self;
+
+    /// The game was resumed (e.g. this is now the foreground app).
+    fn resumed(&mut self, ctxt: &mut Context);
 
     /// Updates the game state [`Game::TICKS_PER_SECOND`] per second.
     ///
