@@ -170,7 +170,7 @@ impl<'a> Window<'a> {
     }
 }
 
-/// A lazy loaded resource.
+/// A lazily loaded resource.
 pub struct Lazy<Resource>
 where
     Resource: LazyLoadable,
@@ -219,6 +219,10 @@ where
     }
 
     /// Gets the loaded resource, or loads it if not already loaded.
+    ///
+    /// When this function is first called, the resource will be loaded into the graphics state.
+    ///
+    /// If the graphics device is invalidated, the underlying resource will also be invalidated and a subsequent call to this function will reload it if a new graphics state is provided.
     pub fn get_or_load(&mut self, graphics: &mut Graphics) -> &Resource {
         if let Some(loaded) = &self.loaded {
             if &graphics.gfx.device as *const _ != loaded.device_ptr {
