@@ -173,7 +173,7 @@ impl<'a> Window<'a> {
 /// A lazy loaded resource.
 pub struct Lazy<Resource>
 where
-    Resource: Loadable,
+    Resource: LazyLoadable,
 {
     raw: Resource::Raw,
     loaded: Option<LazyLoaded<Resource>>,
@@ -184,12 +184,16 @@ struct LazyLoaded<Resource> {
     device_ptr: *const wgpu::Device,
 }
 
-pub trait Loadable {
+/// A resource that can be lazily loaded.
+pub trait LazyLoadable {
+    /// The raw resource.
     type Raw;
+
+    /// Loads a raw resource into the graphics state and returns the loaded resource.
     fn load(graphics: &mut Graphics, raw: &Self::Raw) -> Self;
 }
 
-impl Loadable for canvasette::Texture {
+impl LazyLoadable for canvasette::Texture {
     type Raw = crate::image::Img<Vec<rgb::RGBA8>>;
 
     fn load(graphics: &mut Graphics, raw: &Self::Raw) -> Self {
@@ -197,7 +201,7 @@ impl Loadable for canvasette::Texture {
     }
 }
 
-impl Loadable for Vec<font::Attrs> {
+impl LazyLoadable for Vec<font::Attrs> {
     type Raw = Vec<u8>;
 
     fn load(graphics: &mut Graphics, raw: &Self::Raw) -> Self {
@@ -207,7 +211,7 @@ impl Loadable for Vec<font::Attrs> {
 
 impl<Resource> Lazy<Resource>
 where
-    Resource: Loadable,
+    Resource: LazyLoadable,
 {
     /// Creates a lazy resource from the raw resource.
     pub fn new(raw: Resource::Raw) -> Self {
