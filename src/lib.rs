@@ -140,6 +140,11 @@ where
         });
     }
 
+    fn suspended(&mut self) {
+        self.gfx_state = None;
+        self.game.suspended();
+    }
+
     fn redraw(&mut self, gfx: &wginit::Graphics) {
         // Allow use of the Tokio runtime from game callbacks.
         #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
@@ -272,7 +277,12 @@ pub trait Game {
     fn new() -> Self;
 
     /// The game was resumed (e.g. this is now the foreground app).
-    fn resumed(&mut self, ctxt: &mut Context);
+    fn resumed(&mut self, ctxt: &mut Context) {
+        _ = ctxt;
+    }
+
+    /// The game was suspended (e.g. this is no longer the foreground app).
+    fn suspended(&mut self) {}
 
     /// Updates the game state [`Game::TICKS_PER_SECOND`] per second.
     ///
