@@ -21,6 +21,9 @@ impl Framebuffer {
     }
 }
 
+#[derive(PartialEq, Eq)]
+struct DeviceId(*const wgpu::Device);
+
 pub struct Graphics<'a> {
     pub(crate) canvasette_renderer: &'a mut canvasette::Renderer,
     pub(crate) gfx: &'a wginit::Graphics<'a>,
@@ -66,6 +69,10 @@ pub(crate) fn render_to_texture(
 }
 
 impl<'a> Graphics<'a> {
+    fn device_id(&self) -> DeviceId {
+        DeviceId(self.gfx.device as *const _)
+    }
+
     /// Adds a font.
     pub fn add_font(&mut self, font: &[u8]) -> Vec<font::Attrs> {
         self.canvasette_renderer.add_font(font)
@@ -181,7 +188,7 @@ where
 
 struct LazyLoaded<Resource> {
     ready: Resource,
-    device_ptr: *const wgpu::Device,
+    device_id: DeviceId,
 }
 
 /// A resource that can be lazily loaded.
@@ -224,8 +231,9 @@ where
     ///
     /// If the graphics device is invalidated, the underlying resource will also be invalidated and a subsequent call to this function will reload it if a new graphics state is provided.
     pub fn get_or_load(&mut self, graphics: &mut Graphics) -> &Resource {
+        let device_id = graphics.device_id();
         if let Some(loaded) = &self.loaded {
-            if graphics.gfx.device as *const _ != loaded.device_ptr {
+            if device_id != loaded.device_id {
                 self.unload();
             }
         }
@@ -234,7 +242,7 @@ where
             .loaded
             .get_or_insert_with(|| LazyLoaded {
                 ready: Resource::load(graphics, &self.raw),
-                device_ptr: graphics.gfx.device as *const _,
+                device_id,
             })
             .ready
     }
