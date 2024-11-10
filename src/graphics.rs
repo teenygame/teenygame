@@ -170,54 +170,69 @@ impl<'a> Window<'a> {
     }
 }
 
-/// A lazy texture that is uploaded to the GPU on first use.
-pub struct LazyTexture(LazyTextureInner);
-
-enum LazyTextureInner {
-    Cpu(crate::image::Img<Vec<rgb::RGBA8>>),
-    Gpu(canvasette::Texture),
+/// A lazy loaded resource.
+pub struct Lazy<Resource>
+where
+    Resource: Loadable,
+{
+    raw: Resource::Raw,
+    loaded: Option<LazyLoaded<Resource>>,
 }
 
-impl LazyTexture {
-    /// Creates a lazy texture from an image.
-    pub fn new(img: crate::image::Img<Vec<rgb::RGBA8>>) -> Self {
-        Self(LazyTextureInner::Cpu(img))
+struct LazyLoaded<Resource> {
+    ready: Resource,
+    device_ptr: *const wgpu::Device,
+}
+
+pub trait Loadable {
+    type Raw;
+    fn load(graphics: &mut Graphics, raw: &Self::Raw) -> Self;
+}
+
+impl Loadable for canvasette::Texture {
+    type Raw = crate::image::Img<Vec<rgb::RGBA8>>;
+
+    fn load(graphics: &mut Graphics, raw: &Self::Raw) -> Self {
+        graphics.load_texture(raw.as_ref())
+    }
+}
+
+impl Loadable for Vec<font::Attrs> {
+    type Raw = Vec<u8>;
+
+    fn load(graphics: &mut Graphics, raw: &Self::Raw) -> Self {
+        graphics.add_font(raw)
+    }
+}
+
+impl<Resource> Lazy<Resource>
+where
+    Resource: Loadable,
+{
+    /// Creates a lazy resource from the raw resource.
+    pub fn new(raw: Resource::Raw) -> Self {
+        Self { raw, loaded: None }
     }
 
-    /// Gets the GPU texture, or loads it if not already loaded.
-    pub fn get_or_load_texture(&mut self, graphics: &Graphics) -> &canvasette::Texture {
-        if let LazyTextureInner::Cpu(img) = &mut self.0 {
-            self.0 = LazyTextureInner::Gpu(graphics.load_texture(img.as_ref()));
+    /// Gets the loaded resource, or loads it if not already loaded.
+    pub fn get_or_load(&mut self, graphics: &mut Graphics) -> &Resource {
+        if let Some(loaded) = &self.loaded {
+            if &graphics.gfx.device as *const _ != loaded.device_ptr {
+                self.unload();
+            }
         }
-        let LazyTextureInner::Gpu(texture) = &self.0 else {
-            unreachable!();
-        };
-        texture
-    }
-}
 
-/// A lazy font that is added to the graphics context on first use.
-pub struct LazyFont(LazyFontInner);
-
-enum LazyFontInner {
-    Raw(Vec<u8>),
-    Faces(Vec<font::Attrs>),
-}
-
-impl LazyFont {
-    /// Creates a lazy font from bytes.
-    pub fn new(raw: &[u8]) -> Self {
-        Self(LazyFontInner::Raw(raw.to_vec()))
+        &self
+            .loaded
+            .get_or_insert_with(|| LazyLoaded {
+                ready: Resource::load(graphics, &self.raw),
+                device_ptr: &graphics.gfx.device as *const _,
+            })
+            .ready
     }
 
-    /// Gets the font's faces, or loads it if not already loaded.
-    pub fn get_or_load_faces(&mut self, graphics: &mut Graphics) -> &[font::Attrs] {
-        if let LazyFontInner::Raw(raw) = &self.0 {
-            self.0 = LazyFontInner::Faces(graphics.add_font(raw));
-        }
-        let LazyFontInner::Faces(faces) = &self.0 else {
-            unreachable!();
-        };
-        faces
+    /// Unloads the resource.
+    pub fn unload(&mut self) {
+        self.loaded = None;
     }
 }

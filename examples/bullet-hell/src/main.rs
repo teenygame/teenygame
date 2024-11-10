@@ -2,7 +2,7 @@ use std::{f32::consts::TAU, num::NonZero};
 
 use soa_rs::{soa, Soa, Soars};
 use teenygame::{
-    graphics::{font, Canvas, Color, Drawable, LazyFont, LazyTexture, TextureSlice},
+    graphics::{font, Canvas, Color, Drawable, Lazy, Texture, TextureSlice},
     image,
     input::KeyCode,
     math::*,
@@ -23,11 +23,11 @@ struct Game {
     deaths: usize,
     n: usize,
     bullets: Soa<Bullet>,
-    bullet_texture: LazyTexture,
+    bullet_texture: Lazy<Texture>,
     player_pos: Vec2,
     elapsed: usize,
     last_draw_time: time::Instant,
-    font: LazyFont,
+    font: Lazy<Vec<font::Attrs>>,
 }
 
 struct TextureSlices<'a> {
@@ -57,13 +57,13 @@ impl teenygame::Game for Game {
             deaths: 0,
             n: 0,
             bullets: soa![],
-            bullet_texture: LazyTexture::new(
+            bullet_texture: Lazy::new(
                 image::load_from_memory(include_bytes!("Shot_01.png")).unwrap(),
             ),
             player_pos: Vec2::new(SIZE.x as f32 / 2.0, SIZE.y as f32 * 3.0 / 4.0),
             elapsed: 0,
             last_draw_time: time::Instant::now(),
-            font: LazyFont::new(include_bytes!("PixelOperator.ttf")),
+            font: Lazy::new(include_bytes!("PixelOperator.ttf").to_vec()),
         }
     }
 
@@ -178,7 +178,7 @@ impl teenygame::Game for Game {
     fn draw<'a>(&'a mut self, ctxt: &mut Context, canvas: &mut Canvas<'a>) {
         let start_time = time::Instant::now();
         let slices = TextureSlices::new(TextureSlice::from(
-            self.bullet_texture.get_or_load_texture(&ctxt.gfx),
+            self.bullet_texture.get_or_load(ctxt.gfx),
         ))
         .unwrap();
 
@@ -223,7 +223,7 @@ impl teenygame::Game for Game {
             );
         }
 
-        let face = self.font.get_or_load_faces(ctxt.gfx)[0].clone();
+        let face = self.font.get_or_load(ctxt.gfx)[0].clone();
 
         canvas.draw(
             ctxt.gfx

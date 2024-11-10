@@ -2,7 +2,7 @@ use rand::prelude::IteratorRandom;
 use std::collections::VecDeque;
 use teenygame::{
     audio::{PlaybackHandle, Region, Sound, Source},
-    graphics::{font, Canvas, Color, Drawable as _, LazyFont, LazyTexture, Texture, TextureSlice},
+    graphics::{font, Canvas, Color, Drawable as _, Lazy, Texture, TextureSlice},
     input::KeyCode,
     math::*,
     Context,
@@ -25,7 +25,7 @@ const WEST: IVec2 = ivec2(-1, 0);
 
 #[teenygame::game]
 struct Game {
-    texture: LazyTexture,
+    texture: Lazy<Texture>,
     pickup_sfx: Sound,
     game_over_sfx: Sound,
     bgm_handle: Option<PlaybackHandle>,
@@ -36,7 +36,7 @@ struct Game {
     next_direction: IVec2,
     score: u32,
     elapsed: u32,
-    font: LazyFont,
+    font: Lazy<Vec<font::Attrs>>,
 }
 
 impl Game {
@@ -68,7 +68,7 @@ impl teenygame::Game for Game {
         }
 
         let mut game = Self {
-            texture: LazyTexture::new(teenygame::image::Img::new(
+            texture: Lazy::new(teenygame::image::Img::new(
                 vec![Color::new(0xff, 0xff, 0xff, 0xff)],
                 1,
                 1,
@@ -83,7 +83,7 @@ impl teenygame::Game for Game {
             next_direction: SOUTH,
             score: 0,
             elapsed: 0,
-            font: LazyFont::new(include_bytes!("PixelOperator.ttf")),
+            font: Lazy::new(include_bytes!("PixelOperator.ttf").to_vec()),
         };
         game.spawn_fruit();
         game
@@ -178,7 +178,7 @@ impl teenygame::Game for Game {
     }
 
     fn draw<'a>(&'a mut self, ctxt: &mut Context, canvas: &mut Canvas<'a>) {
-        let texture = self.texture.get_or_load_texture(&ctxt.gfx);
+        let texture = self.texture.get_or_load(ctxt.gfx);
 
         for (y, row) in self.board.iter().enumerate() {
             for (x, cell) in row.iter().enumerate() {
@@ -196,7 +196,7 @@ impl teenygame::Game for Game {
             }
         }
 
-        let face = self.font.get_or_load_faces(ctxt.gfx)[0].clone();
+        let face = self.font.get_or_load(ctxt.gfx)[0].clone();
 
         canvas.draw(
             ctxt.gfx
