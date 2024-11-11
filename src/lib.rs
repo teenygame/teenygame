@@ -151,7 +151,7 @@ where
         self.game.suspended();
     }
 
-    fn window_event(&mut self, ctxt: &wginit::Context, event: winit::event::WindowEvent) {
+    fn window_event(&mut self, _ctxt: &wginit::Context, event: winit::event::WindowEvent) {
         match event {
             WindowEvent::KeyboardInput {
                 event:
@@ -200,65 +200,62 @@ where
                     }
                 };
             }
-            WindowEvent::RedrawRequested => {
-                // Allow use of the Tokio runtime from game callbacks.
-                #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
-                let _guard = self.tokio_rt.enter();
-
-                let Some(gfx_state) = self.gfx_state.as_mut() else {
-                    return;
-                };
-                let window = ctxt.window.unwrap();
-                let wgpu = ctxt.wgpu.unwrap();
-
-                self.update_ticker.start_draw();
-                while self.update_ticker.tick() {
-                    self.game.update(&mut Context {
-                        input: &self.input_state,
-                        #[cfg(feature = "audio")]
-                        audio: &mut self.audio,
-                        gfx: &mut Graphics {
-                            canvasette_renderer: &mut gfx_state.canvasette_renderer,
-                            wgpu,
-                            window,
-                        },
-                    });
-                    self.input_state.update();
-                }
-
-                let mut canvas = Canvas::new();
-                self.game.draw(
-                    &mut Context {
-                        input: &self.input_state,
-                        #[cfg(feature = "audio")]
-                        audio: &mut self.audio,
-                        gfx: &mut Graphics {
-                            canvasette_renderer: &mut gfx_state.canvasette_renderer,
-                            wgpu,
-                            window,
-                        },
-                    },
-                    &mut canvas,
-                );
-
-                let frame = wgpu
-                    .surface
-                    .get_current_texture()
-                    .expect("failed to acquire next swap chain texture");
-
-                graphics::render_to_texture(
-                    wgpu,
-                    &mut gfx_state.canvasette_renderer,
-                    &canvas,
-                    &frame.texture,
-                );
-
-                window.pre_present_notify();
-                frame.present();
-                window.request_redraw();
-            }
             _ => {}
         };
+    }
+
+    fn redraw(&mut self, window: &winit::window::Window, wgpu: &wginit::Wgpu) {
+        // Allow use of the Tokio runtime from game callbacks.
+        #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
+        let _guard = self.tokio_rt.enter();
+
+        let gfx_state = self.gfx_state.as_mut().unwrap();
+
+        self.update_ticker.start_draw();
+        while self.update_ticker.tick() {
+            self.game.update(&mut Context {
+                input: &self.input_state,
+                #[cfg(feature = "audio")]
+                audio: &mut self.audio,
+                gfx: &mut Graphics {
+                    canvasette_renderer: &mut gfx_state.canvasette_renderer,
+                    wgpu,
+                    window,
+                },
+            });
+            self.input_state.update();
+        }
+
+        let mut canvas = Canvas::new();
+        self.game.draw(
+            &mut Context {
+                input: &self.input_state,
+                #[cfg(feature = "audio")]
+                audio: &mut self.audio,
+                gfx: &mut Graphics {
+                    canvasette_renderer: &mut gfx_state.canvasette_renderer,
+                    wgpu,
+                    window,
+                },
+            },
+            &mut canvas,
+        );
+
+        let frame = wgpu
+            .surface
+            .get_current_texture()
+            .expect("failed to acquire next swap chain texture");
+
+        graphics::render_to_texture(
+            wgpu,
+            &mut gfx_state.canvasette_renderer,
+            &canvas,
+            &frame.texture,
+        );
+
+        window.pre_present_notify();
+        frame.present();
+        window.request_redraw();
     }
 }
 
