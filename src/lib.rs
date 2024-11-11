@@ -123,24 +123,26 @@ where
         let window = ctxt.window.unwrap();
         let wgpu = ctxt.wgpu.unwrap();
 
-        let mut canvasette_renderer = canvasette::Renderer::new(
+        let canvasette_renderer = canvasette::Renderer::new(
             &wgpu.device,
             wgpu.surface.get_capabilities(&wgpu.adapter).formats[0],
         );
+
+        self.gfx_state = Some(GraphicsState {
+            canvasette_renderer,
+        });
+
+        let gfx_state = self.gfx_state.as_mut().unwrap();
 
         self.game.resumed(&mut Context {
             input: &self.input_state,
             #[cfg(feature = "audio")]
             audio: &mut self.audio,
             gfx: &mut Graphics {
-                canvasette_renderer: &mut canvasette_renderer,
+                canvasette_renderer: &mut gfx_state.canvasette_renderer,
                 wgpu,
                 window,
             },
-        });
-
-        self.gfx_state = Some(GraphicsState {
-            canvasette_renderer,
         });
     }
 
@@ -199,14 +201,13 @@ where
                 };
             }
             WindowEvent::RedrawRequested => {
-                let Some(gfx_state) = self.gfx_state.as_mut() else {
-                    return;
-                };
-
                 // Allow use of the Tokio runtime from game callbacks.
                 #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
                 let _guard = self.tokio_rt.enter();
 
+                let Some(gfx_state) = self.gfx_state.as_mut() else {
+                    return;
+                };
                 let window = ctxt.window.unwrap();
                 let wgpu = ctxt.wgpu.unwrap();
 
