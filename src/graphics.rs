@@ -26,20 +26,21 @@ struct DeviceId(*const wgpu::Device);
 
 pub struct Graphics<'a> {
     pub(crate) canvasette_renderer: &'a mut canvasette::Renderer,
-    pub(crate) gfx: &'a wginit::Graphics<'a>,
+    pub(crate) wgpu: &'a wginit::Wgpu,
+    pub(crate) window: &'a winit::window::Window,
 }
 
 pub(crate) fn render_to_texture(
-    gfx: &wginit::Graphics,
+    wgpu: &wginit::Wgpu,
     canvasette_renderer: &mut canvasette::Renderer,
     canvas: &Canvas,
     texture: &wgpu::Texture,
 ) {
     canvasette_renderer
-        .prepare(&gfx.device, &gfx.queue, texture.size(), canvas)
+        .prepare(&wgpu.device, &wgpu.queue, texture.size(), canvas)
         .unwrap();
 
-    let mut encoder = gfx
+    let mut encoder = wgpu
         .device
         .create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("teenygame: encoder"),
@@ -65,12 +66,12 @@ pub(crate) fn render_to_texture(
         canvasette_renderer.render(&mut rpass);
     }
 
-    gfx.queue.submit(Some(encoder.finish()));
+    wgpu.queue.submit(Some(encoder.finish()));
 }
 
 impl<'a> Graphics<'a> {
     fn device_id(&self) -> DeviceId {
-        DeviceId(self.gfx.device as *const _)
+        DeviceId(&self.wgpu.device as *const _)
     }
 
     /// Adds a font.
@@ -91,35 +92,41 @@ impl<'a> Graphics<'a> {
 
     /// Retrieve the underlying window.
     pub fn window(&self) -> Window {
-        Window(&self.gfx.window)
+        Window(&self.window)
     }
 
     /// Creates an empty framebuffer texture.
     pub fn create_framebuffer(&self, size: math::UVec2) -> Framebuffer {
-        Framebuffer(self.gfx.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("teenygame: Framebuffer"),
-            size: wgpu::Extent3d {
-                width: size.x,
-                height: size.y,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: self.gfx.surface.get_capabilities(&self.gfx.adapter).formats[0],
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-                | wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[],
-        }))
+        Framebuffer(
+            self.wgpu.device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("teenygame: Framebuffer"),
+                size: wgpu::Extent3d {
+                    width: size.x,
+                    height: size.y,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: self
+                    .wgpu
+                    .surface
+                    .get_capabilities(&self.wgpu.adapter)
+                    .formats[0],
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                    | wgpu::TextureUsages::TEXTURE_BINDING
+                    | wgpu::TextureUsages::COPY_SRC,
+                view_formats: &[],
+            }),
+        )
     }
 
     /// Loads a texture.
     pub fn load_texture(&self, img: impl AsImgRef<Color>) -> Texture {
         let (buf, width, height) = img.as_ref().to_contiguous_buf();
 
-        Texture::from(self.gfx.device.create_texture_with_data(
-            &self.gfx.queue,
+        Texture::from(self.wgpu.device.create_texture_with_data(
+            &self.wgpu.queue,
             &wgpu::TextureDescriptor {
                 label: Some("teenygame: Texture"),
                 size: wgpu::Extent3d {
@@ -142,7 +149,7 @@ impl<'a> Graphics<'a> {
     /// Renders to a framebuffer.
     pub fn render_to_framebuffer(&mut self, canvas: &Canvas, framebuffer: &Framebuffer) {
         render_to_texture(
-            &self.gfx,
+            &self.wgpu,
             &mut self.canvasette_renderer,
             canvas,
             &framebuffer.0,
