@@ -2,7 +2,7 @@ use rand::prelude::IteratorRandom;
 use std::collections::VecDeque;
 use teenygame::{
     audio::{PlaybackHandle, Region, Sound, Source},
-    graphics::{font, Canvas, Color, Drawable as _, Lazy, Texture, TextureSlice},
+    graphics::{font, Canvas, Color, Drawable as _, Lazy, Texture},
     input::KeyCode,
     math::*,
     Context,
@@ -70,7 +70,7 @@ impl teenygame::Game for Game {
         let mut game = Self {
             texture: Lazy::new(teenygame::image::Img::new(
                 vec![Color::new(0xff, 0xff, 0xff, 0xff)],
-                1,
+                uvec2(1, 1),
                 1,
             )),
             pickup_sfx: Sound::new(Source::load(include_bytes!("pickup.wav")).unwrap()),
@@ -183,7 +183,7 @@ impl teenygame::Game for Game {
         for (y, row) in self.board.iter().enumerate() {
             for (x, cell) in row.iter().enumerate() {
                 canvas.draw(
-                    TextureSlice::new(texture, 0).tinted(match cell {
+                    texture.layer(0).unwrap().tinted(match cell {
                         None => {
                             continue;
                         }

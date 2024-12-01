@@ -34,7 +34,7 @@ struct TextureSlices<'a> {
 impl<'a> TextureSlices<'a> {
     fn new(parent: &'a Texture) -> Option<Self> {
         Some(Self {
-            bullet: TextureSlice::new(parent, 0).slice(ivec2(0, 48), uvec2(16, 16))?,
+            bullet: parent.layer(0)?.slice(ivec2(0, 48), uvec2(16, 16))?,
         })
     }
 }

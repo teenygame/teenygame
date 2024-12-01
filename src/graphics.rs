@@ -2,9 +2,7 @@
 
 use crate::{image::AsImgRef, math};
 pub use canvasette::{font, Canvas, Drawable, PreparedText, TextureSlice};
-pub use imgref::ImgRef;
 use wgpu::util::DeviceExt as _;
-pub use wgpu::Texture;
 use winit::dpi::PhysicalSize;
 
 /// An 8-bit RGBA color.
@@ -124,15 +122,16 @@ impl<'a> Graphics<'a> {
 
     /// Loads a texture.
     pub fn load_texture(&self, img: impl AsImgRef<Color>) -> Texture {
-        let (buf, width, height) = img.as_ref().to_contiguous_buf();
+        let img = img.as_ref();
+        let size = img.size();
 
-        self.wgpu.device.create_texture_with_data(
+        Texture(self.wgpu.device.create_texture_with_data(
             &self.wgpu.queue,
             &wgpu::TextureDescriptor {
                 label: Some("teenygame: Texture"),
                 size: wgpu::Extent3d {
-                    width: width as u32,
-                    height: height as u32,
+                    width: size.x,
+                    height: size.y,
                     depth_or_array_layers: 1,
                 },
                 mip_level_count: 1,
@@ -143,8 +142,8 @@ impl<'a> Graphics<'a> {
                 view_formats: &[],
             },
             wgpu::util::TextureDataOrder::default(),
-            &bytemuck::cast_slice(&buf),
-        )
+            &bytemuck::cast_slice(img.as_buf()),
+        ))
     }
 
     /// Renders to a framebuffer.
@@ -182,6 +181,19 @@ impl<'a> Window<'a> {
     /// Gets the scale factor of the window.
     pub fn scale_factor(&self) -> f64 {
         self.0.scale_factor()
+    }
+}
+
+/// A texture.
+pub struct Texture(wgpu::Texture);
+
+impl Texture {
+    /// Gets a slice of the texture at the given layer.
+    pub fn layer(&self, layer: u32) -> Option<TextureSlice> {
+        if layer >= self.0.size().depth_or_array_layers {
+            return None;
+        }
+        Some(TextureSlice::new(&self.0, layer))
     }
 }
 

@@ -25,7 +25,6 @@ kira = { version = "0.9.5", optional = true }
 wginit = "0.6.2"
 wgpu = { version = "23.0.1", features = ["webgl"] }
 canvasette = "0.15.0"
-imgref = "1.11.0"
 rgb = "0.8.50"
 bytemuck = "1.19.0"
 glam = "0.29.0"
