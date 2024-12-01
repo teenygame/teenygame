@@ -12,14 +12,26 @@
 /// ```
 #[proc_macro_attribute]
 pub fn game(
-    _attr: proc_macro::TokenStream,
+    args: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
+    let mut crate_name = syn::Ident::new("teenygame", proc_macro::Span::call_site().into());
+
+    let args_parser = syn::meta::parser(|meta| {
+        if meta.path.is_ident("crate") {
+            crate_name = meta.value()?.parse()?;
+            Ok(())
+        } else {
+            Err(meta.error("unsupported property"))
+        }
+    });
+
+    syn::parse_macro_input!(args with args_parser);
     let input = syn::parse_macro_input!(input as syn::ItemStruct);
     let name = &input.ident;
     proc_macro::TokenStream::from(quote::quote! {
         pub fn main() {
-            teenygame::run::<#name>();
+            #crate_name::run::<#name>();
         }
 
         #input
