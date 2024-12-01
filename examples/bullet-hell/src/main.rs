@@ -36,10 +36,10 @@ struct TextureSlices<'a> {
 }
 
 impl<'a> TextureSlices<'a> {
-    fn new(parent: TextureSlice<'a>) -> Option<Self> {
+    fn new(parent: &'a Texture) -> Option<Self> {
         Some(Self {
-            bullet: parent.slice(ivec2(0, 48), uvec2(16, 16))?,
-            player: parent.slice(ivec2(0, 440), uvec2(8, 8))?,
+            bullet: TextureSlice::new(parent, 0).slice(ivec2(0, 48), uvec2(16, 16))?,
+            player: TextureSlice::new(parent, 0).slice(ivec2(0, 440), uvec2(8, 8))?,
         })
     }
 }
@@ -177,10 +177,7 @@ impl teenygame::Game for Game {
 
     fn draw<'a>(&'a mut self, ctxt: &mut Context, canvas: &mut Canvas<'a>) {
         let start_time = time::Instant::now();
-        let slices = TextureSlices::new(TextureSlice::from(
-            self.bullet_texture.get_or_load(ctxt.gfx),
-        ))
-        .unwrap();
+        let slices = TextureSlices::new(self.bullet_texture.get_or_load(ctxt.gfx)).unwrap();
 
         let mut to_draw = self
             .bullets

@@ -1,9 +1,10 @@
 //! Graphics support.
 
 use crate::{image::AsImgRef, math};
-pub use canvasette::{font, Canvas, Drawable, PreparedText, Texture, TextureSlice};
+pub use canvasette::{font, Canvas, Drawable, PreparedText, TextureSlice};
 pub use imgref::ImgRef;
 use wgpu::util::DeviceExt as _;
+pub use wgpu::Texture;
 use winit::dpi::PhysicalSize;
 
 /// An 8-bit RGBA color.
@@ -17,7 +18,7 @@ pub struct Framebuffer(wgpu::Texture);
 impl Framebuffer {
     /// Gets the underlying texture as a [`TextureSlice`], which may be used for sprite drawing.
     pub fn as_texture_slice(&self) -> TextureSlice {
-        TextureSlice::from(&self.0)
+        TextureSlice::new(&self.0, 0)
     }
 }
 
@@ -125,7 +126,7 @@ impl<'a> Graphics<'a> {
     pub fn load_texture(&self, img: impl AsImgRef<Color>) -> Texture {
         let (buf, width, height) = img.as_ref().to_contiguous_buf();
 
-        Texture::from(self.wgpu.device.create_texture_with_data(
+        self.wgpu.device.create_texture_with_data(
             &self.wgpu.queue,
             &wgpu::TextureDescriptor {
                 label: Some("teenygame: Texture"),
@@ -143,7 +144,7 @@ impl<'a> Graphics<'a> {
             },
             wgpu::util::TextureDataOrder::default(),
             &bytemuck::cast_slice(&buf),
-        ))
+        )
     }
 
     /// Renders to a framebuffer.
@@ -207,7 +208,7 @@ pub trait LazyLoadable {
     fn load(graphics: &mut Graphics, raw: &Self::Raw) -> Self;
 }
 
-impl LazyLoadable for canvasette::Texture {
+impl LazyLoadable for Texture {
     type Raw = crate::image::Img<Vec<rgb::RGBA8>>;
 
     fn load(graphics: &mut Graphics, raw: &Self::Raw) -> Self {

@@ -183,7 +183,7 @@ impl teenygame::Game for Game {
         for (y, row) in self.board.iter().enumerate() {
             for (x, cell) in row.iter().enumerate() {
                 canvas.draw(
-                    TextureSlice::from(texture).tinted(match cell {
+                    TextureSlice::new(texture, 0).tinted(match cell {
                         None => {
                             continue;
                         }
