@@ -10,6 +10,15 @@
 ///    // Implementation goes here.
 /// }
 /// ```
+///
+/// If you've imported `teenygame` under a different name, you can specify it via the `crate` argument, e.g.:
+///
+/// ```
+/// use teenygame as teenygame1;
+///
+/// #[teenygame1::game(crate = teenygame1)]
+/// struct Game;
+/// ```
 #[proc_macro_attribute]
 pub fn game(
     args: proc_macro::TokenStream,
