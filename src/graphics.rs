@@ -79,6 +79,18 @@ impl FontLibrary {
             .collect::<Vec<_>>()
     }
 
+    /// Lists all faces.
+    pub fn faces(&self) -> impl Iterator<Item = font::Attrs> + '_ {
+        self.0.db().faces().flat_map(|face_info| {
+            face_info.families.iter().map(|(name, _)| font::Attrs {
+                family: font::Family::Name(name.clone()),
+                stretch: face_info.stretch,
+                style: face_info.style,
+                weight: face_info.weight,
+            })
+        })
+    }
+
     /// Creates a label for rendering.
     pub fn create_label(
         &mut self,
