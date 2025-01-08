@@ -2,7 +2,7 @@ use std::{f32::consts::TAU, num::NonZero};
 
 use soa_rs::{soa, Soa, Soars};
 use teenygame::{
-    graphics::{font, Canvas, Color, Drawable, Image, Label, TextureSlice},
+    graphics::{font, Canvas, Color, Drawable, Image, TextureSlice},
     image,
     math::*,
     time, Context,
@@ -44,9 +44,7 @@ const SCALE: u32 = 2;
 
 impl teenygame::Game for Game {
     fn new(ctxt: &mut Context) -> Self {
-        ctxt.font_system
-            .db_mut()
-            .load_font_data(include_bytes!("PixelOperator.ttf").to_vec());
+        ctxt.fonts.add_font(include_bytes!("PixelOperator.ttf"));
 
         Self {
             n: 0,
@@ -157,17 +155,17 @@ impl teenygame::Game for Game {
         }
 
         canvas.draw(
-            Label::new(
-                ctxt.font_system,
-                &format!(
-                    "num bullets: {}\nfps: {:.02}",
-                    self.bullets.len(),
-                    1.0 / (start_time - self.last_draw_time).as_secs_f32()
-                ),
-                font::Metrics::relative(64.0, 1.0),
-                font::Attrs::default(),
-            )
-            .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
+            ctxt.fonts
+                .create_label(
+                    format!(
+                        "num bullets: {}\nfps: {:.02}",
+                        self.bullets.len(),
+                        1.0 / (start_time - self.last_draw_time).as_secs_f32()
+                    ),
+                    font::Metrics::relative(64.0, 1.0),
+                    font::Attrs::default(),
+                )
+                .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
             translate(16.0, 56.0),
         );
 

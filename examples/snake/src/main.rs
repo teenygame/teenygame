@@ -2,7 +2,7 @@ use rand::prelude::IteratorRandom;
 use std::collections::VecDeque;
 use teenygame::{
     audio::{PlaybackHandle, Region, Sound, Source},
-    graphics::{font, Canvas, Color, Drawable as _, Image, Label, TextureSlice},
+    graphics::{font, Canvas, Color, Drawable as _, Image, TextureSlice},
     input::KeyCode,
     math::*,
     Context,
@@ -59,9 +59,7 @@ impl Game {
 
 impl teenygame::Game for Game {
     fn new(ctxt: &mut Context) -> Self {
-        ctxt.font_system
-            .db_mut()
-            .load_font_data(include_bytes!("PixelOperator.ttf").to_vec());
+        ctxt.fonts.add_font(include_bytes!("PixelOperator.ttf"));
 
         let mut board = [[None; BOARD_SIZE.x as usize]; BOARD_SIZE.y as usize];
         let snake = VecDeque::from([BOARD_SIZE / 2]);
@@ -214,19 +212,18 @@ impl teenygame::Game for Game {
         }
 
         canvas.draw(
-            Label::new(
-                ctxt.font_system,
-                &format!("Score: {}", self.score),
-                font::Metrics::relative(64.0, 1.0),
-                font::Attrs::default(),
-            )
-            .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
+            ctxt.fonts
+                .create_label(
+                    format!("Score: {}", self.score),
+                    font::Metrics::relative(64.0, 1.0),
+                    font::Attrs::default(),
+                )
+                .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
             translate(16.0, 56.0),
         );
 
         if self.game_over {
-            let prepared_game_over = Label::new(
-                ctxt.font_system,
+            let prepared_game_over = ctxt.fonts.create_label(
                 "GAME OVER",
                 font::Metrics::relative(128.0, 1.0),
                 font::Attrs::default(),

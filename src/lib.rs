@@ -49,7 +49,7 @@ struct Application<G> {
     input_state: InputState,
     game: G,
 
-    font_system: cosmic_text::FontSystem,
+    fonts: graphics::FontLibrary,
     gfx_state: Option<GraphicsState>,
 
     #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
@@ -104,21 +104,18 @@ where
 
         let input_state = InputState::new();
 
-        let mut font_system = cosmic_text::FontSystem::new_with_locale_and_db(
-            sys_locale::get_locale().unwrap_or_else(|| "en-US".to_string()),
-            cosmic_text::fontdb::Database::new(),
-        );
+        let mut fonts = graphics::FontLibrary::new();
 
         Self {
             game: G::new(&mut Context {
                 input: &input_state,
                 #[cfg(feature = "audio")]
                 audio: &mut audio,
-                font_system: &mut font_system,
+                fonts: &mut fonts,
                 window: None,
             }),
             gfx_state: None,
-            font_system,
+            fonts,
 
             #[cfg(feature = "audio")]
             audio,
@@ -148,7 +145,7 @@ where
             input: &self.input_state,
             #[cfg(feature = "audio")]
             audio: &mut self.audio,
-            font_system: &mut self.font_system,
+            fonts: &mut self.fonts,
             window: Some(window),
         });
     }
@@ -224,7 +221,7 @@ where
                 input: &self.input_state,
                 #[cfg(feature = "audio")]
                 audio: &mut self.audio,
-                font_system: &mut self.font_system,
+                fonts: &mut self.fonts,
                 window: Some(window),
             });
             self.input_state.update();
@@ -236,7 +233,7 @@ where
                 input: &self.input_state,
                 #[cfg(feature = "audio")]
                 audio: &mut self.audio,
-                font_system: &mut self.font_system,
+                fonts: &mut self.fonts,
                 window: Some(window),
             },
             &mut canvas,
@@ -250,7 +247,7 @@ where
         graphics::render_to_texture(
             wgpu,
             &mut gfx_state.canvasette_renderer,
-            &mut self.font_system,
+            &mut self.fonts,
             &canvas,
             &frame.texture,
         );
@@ -271,7 +268,7 @@ pub struct Context<'a> {
     pub audio: &'a mut Audio,
 
     /// Font system.
-    pub font_system: &'a mut cosmic_text::FontSystem,
+    pub fonts: &'a mut graphics::FontLibrary,
 
     /// Window.
     pub window: Option<&'a wginit::winit::window::Window>,
