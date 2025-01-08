@@ -7,7 +7,6 @@ use winit::dpi::PhysicalSize;
 pub(crate) fn render_to_texture(
     wgpu: &wginit::Wgpu,
     canvasette_renderer: &mut canvasette::Renderer,
-    canvasette_cache: &mut canvasette::Cache,
     font_system: &mut cosmic_text::FontSystem,
     canvas: &Canvas,
     texture: &wgpu::Texture,
@@ -16,7 +15,6 @@ pub(crate) fn render_to_texture(
         .prepare(
             &wgpu.device,
             &wgpu.queue,
-            canvasette_cache,
             font_system,
             texture.size(),
             canvas,

@@ -69,12 +69,20 @@ impl teenygame::Game for Game {
         let mut game = Self {
             texture: Image::new(
                 vec![0xff, 0xff, 0xff, 0xff],
-                wgpu::Extent3d {
-                    width: 1,
-                    height: 1,
-                    depth_or_array_layers: 1,
+                wgpu::TextureDescriptor {
+                    label: None,
+                    size: wgpu::Extent3d {
+                        width: 1,
+                        height: 1,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                    usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                    view_formats: &[],
                 },
-                wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             ),
             pickup_sfx: Sound::new(Source::load(include_bytes!("pickup.wav")).unwrap()),
             game_over_sfx: Sound::new(Source::load(include_bytes!("game_over.wav")).unwrap()),

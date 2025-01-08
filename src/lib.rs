@@ -41,7 +41,6 @@ use winit::keyboard::PhysicalKey;
 
 struct GraphicsState {
     canvasette_renderer: canvasette::Renderer,
-    canvasette_cache: canvasette::Cache,
 }
 
 struct Application<G> {
@@ -136,7 +135,6 @@ where
 
         self.gfx_state = Some(GraphicsState {
             canvasette_renderer,
-            canvasette_cache: canvasette::Cache::new(),
         });
 
         let gfx_state = self.gfx_state.as_mut().unwrap();
@@ -256,7 +254,6 @@ where
         graphics::render_to_texture(
             wgpu,
             &mut gfx_state.canvasette_renderer,
-            &mut gfx_state.canvasette_cache,
             &mut self.font_system,
             &canvas,
             &frame.texture,
