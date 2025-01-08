@@ -52,7 +52,7 @@ pub(crate) fn render_to_texture(
 pub struct FontLibrary(cosmic_text::FontSystem);
 
 impl FontLibrary {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self(cosmic_text::FontSystem::new_with_locale_and_db(
             sys_locale::get_locale().unwrap_or_else(|| "en-US".to_string()),
             cosmic_text::fontdb::Database::new(),
