@@ -59,7 +59,7 @@ impl FontLibrary {
         ))
     }
 
-    /// Adds a new font to the library, returning all faces in that font as [`font:Attrs`].
+    /// Adds a new font to the library, returning all faces in that font as [`font::Attrs`].
     pub fn add_font(&mut self, font: &[u8]) -> Vec<font::Attrs> {
         self.0
             .db_mut()
