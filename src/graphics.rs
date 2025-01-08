@@ -67,10 +67,10 @@ impl FontLibrary {
                 font.to_vec(),
             )))
             .into_iter()
-            .flat_map(|id| {
-                let face_info = self.0.db().face(id)?;
-                Some(font::Attrs {
-                    family: font::Family::Name(face_info.families.first()?.0.clone()),
+            .flat_map(|id| self.0.db().face(id))
+            .flat_map(|face_info| {
+                face_info.families.iter().map(|(name, _)| font::Attrs {
+                    family: font::Family::Name(name.clone()),
                     stretch: face_info.stretch,
                     style: face_info.style,
                     weight: face_info.weight,
