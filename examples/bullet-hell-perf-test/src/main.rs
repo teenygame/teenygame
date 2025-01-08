@@ -2,7 +2,7 @@ use std::{f32::consts::TAU, num::NonZero};
 
 use soa_rs::{soa, Soa, Soars};
 use teenygame::{
-    graphics::{font, Canvas, Color, Drawable, Image, TextureSlice},
+    graphics::{font, Canvas, Color, Drawable, Image, Label, TextureSlice},
     image,
     math::*,
     time, Context,
@@ -43,7 +43,11 @@ const SIZE: UVec2 = uvec2(1024, 1024);
 const SCALE: u32 = 2;
 
 impl teenygame::Game for Game {
-    fn new() -> Self {
+    fn new(ctxt: &mut Context) -> Self {
+        ctxt.font_system
+            .db_mut()
+            .load_font_data(include_bytes!("PixelOperator.ttf").to_vec());
+
         Self {
             n: 0,
             bullets: soa![],
@@ -54,11 +58,11 @@ impl teenygame::Game for Game {
     }
 
     fn resumed(&mut self, ctxt: &mut Context) {
-        ctxt.gfx.add_font(include_bytes!("PixelOperator.ttf"));
-
-        let window = ctxt.gfx.window();
+        let window = ctxt.window.unwrap();
         window.set_title("Bullet Hell");
-        window.set_size(SIZE * SCALE, false);
+        let size = SIZE * SCALE;
+        let _ = window.request_inner_size(winit::dpi::PhysicalSize::new(size.x, size.y));
+        window.set_resizable(false);
     }
 
     fn update(&mut self, _ctxt: &mut Context) {
@@ -153,17 +157,17 @@ impl teenygame::Game for Game {
         }
 
         canvas.draw(
-            ctxt.gfx
-                .prepare_text(
-                    format!(
-                        "num bullets: {}\nfps: {:.02}",
-                        self.bullets.len(),
-                        1.0 / (start_time - self.last_draw_time).as_secs_f32()
-                    ),
-                    font::Metrics::relative(64.0, 1.0),
-                    font::Attrs::default(),
-                )
-                .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
+            Label::new(
+                ctxt.font_system,
+                &format!(
+                    "num bullets: {}\nfps: {:.02}",
+                    self.bullets.len(),
+                    1.0 / (start_time - self.last_draw_time).as_secs_f32()
+                ),
+                font::Metrics::relative(64.0, 1.0),
+                font::Attrs::default(),
+            )
+            .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
             translate(16.0, 56.0),
         );
 

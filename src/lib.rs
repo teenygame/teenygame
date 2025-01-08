@@ -31,7 +31,6 @@ pub use teenygame_macro::game;
 #[cfg(feature = "audio")]
 use audio::Audio;
 use canvasette::Canvas;
-use graphics::Graphics;
 use input::InputState;
 use std::time::Duration;
 use time::Instant;
@@ -101,17 +100,25 @@ where
         let tokio_rt = tokio::runtime::Runtime::new().unwrap();
 
         #[cfg(feature = "audio")]
-        let audio = Audio::new().unwrap();
+        let mut audio = Audio::new().unwrap();
 
         let input_state = InputState::new();
 
+        let mut font_system = cosmic_text::FontSystem::new_with_locale_and_db(
+            sys_locale::get_locale().unwrap_or_else(|| "en-US".to_string()),
+            cosmic_text::fontdb::Database::new(),
+        );
+
         Self {
-            game: G::new(),
+            game: G::new(&mut Context {
+                input: &input_state,
+                #[cfg(feature = "audio")]
+                audio: &mut audio,
+                font_system: &mut font_system,
+                window: None,
+            }),
             gfx_state: None,
-            font_system: cosmic_text::FontSystem::new_with_locale_and_db(
-                sys_locale::get_locale().unwrap_or_else(|| "en-US".to_string()),
-                cosmic_text::fontdb::Database::new(),
-            ),
+            font_system,
 
             #[cfg(feature = "audio")]
             audio,
@@ -137,17 +144,12 @@ where
             canvasette_renderer,
         });
 
-        let gfx_state = self.gfx_state.as_mut().unwrap();
-
         self.game.resumed(&mut Context {
             input: &self.input_state,
             #[cfg(feature = "audio")]
             audio: &mut self.audio,
-            gfx: &mut Graphics {
-                canvasette_renderer: &mut gfx_state.canvasette_renderer,
-                font_system: &mut self.font_system,
-                window,
-            },
+            font_system: &mut self.font_system,
+            window: Some(window),
         });
     }
 
@@ -222,11 +224,8 @@ where
                 input: &self.input_state,
                 #[cfg(feature = "audio")]
                 audio: &mut self.audio,
-                gfx: &mut Graphics {
-                    canvasette_renderer: &mut gfx_state.canvasette_renderer,
-                    font_system: &mut self.font_system,
-                    window,
-                },
+                font_system: &mut self.font_system,
+                window: Some(window),
             });
             self.input_state.update();
         }
@@ -237,11 +236,8 @@ where
                 input: &self.input_state,
                 #[cfg(feature = "audio")]
                 audio: &mut self.audio,
-                gfx: &mut Graphics {
-                    canvasette_renderer: &mut gfx_state.canvasette_renderer,
-                    font_system: &mut self.font_system,
-                    window,
-                },
+                font_system: &mut self.font_system,
+                window: Some(window),
             },
             &mut canvas,
         );
@@ -274,8 +270,11 @@ pub struct Context<'a> {
     /// Audio context.
     pub audio: &'a mut Audio,
 
-    /// Graphics context.
-    pub gfx: &'a mut Graphics<'a>,
+    /// Font system.
+    pub font_system: &'a mut cosmic_text::FontSystem,
+
+    /// Window.
+    pub window: Option<&'a wginit::winit::window::Window>,
 }
 
 /// Trait to implement for your game.
@@ -288,7 +287,7 @@ pub trait Game {
     /// Constructs the game.
     ///
     /// If Tokio support is enabled, the Tokio runtime will be available here.
-    fn new() -> Self;
+    fn new(ctxt: &mut Context) -> Self;
 
     /// The game was resumed (e.g. this is now the foreground app).
     fn resumed(&mut self, ctxt: &mut Context) {

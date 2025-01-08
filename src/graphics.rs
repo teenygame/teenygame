@@ -1,8 +1,6 @@
 //! Graphics support.
 
-use crate::math;
-pub use canvasette::{font, Canvas, Color, Drawable, Image, PreparedText, TextureSlice};
-use winit::dpi::PhysicalSize;
+pub use canvasette::{font, Canvas, Color, Drawable, Image, Label, TextureSlice};
 
 pub(crate) fn render_to_texture(
     wgpu: &wginit::Wgpu,
@@ -48,60 +46,4 @@ pub(crate) fn render_to_texture(
     }
 
     wgpu.queue.submit(Some(encoder.finish()));
-}
-
-pub struct Graphics<'a> {
-    pub(crate) canvasette_renderer: &'a mut canvasette::Renderer,
-    pub(crate) font_system: &'a mut cosmic_text::FontSystem,
-    pub(crate) window: &'a winit::window::Window,
-}
-
-impl<'a> Graphics<'a> {
-    /// Adds a font.
-    pub fn add_font(&mut self, font: &[u8]) {
-        self.font_system.db_mut().load_font_data(font.to_vec());
-    }
-
-    /// Prepares text for rendering.
-    pub fn prepare_text(
-        &mut self,
-        contents: impl AsRef<str>,
-        metrics: font::Metrics,
-        attrs: font::Attrs,
-    ) -> PreparedText {
-        self.canvasette_renderer
-            .prepare_text(self.font_system, contents, metrics, attrs)
-    }
-
-    /// Retrieve the underlying window.
-    pub fn window(&self) -> Window {
-        Window(&self.window)
-    }
-}
-
-/// Window.
-pub struct Window<'a>(&'a winit::window::Window);
-
-impl<'a> Window<'a> {
-    /// Sets the title of the window.
-    pub fn set_title(&self, title: &str) {
-        self.0.set_title(title);
-    }
-
-    /// Requests the size of the window to be a given size.
-    pub fn set_size(&self, size: math::UVec2, resizable: bool) {
-        self.0.set_resizable(resizable);
-        let _ = self.0.request_inner_size(PhysicalSize::new(size.x, size.y));
-    }
-
-    /// Gets the current size of the window.
-    pub fn size(&self) -> math::UVec2 {
-        let size = self.0.inner_size();
-        math::UVec2::new(size.width, size.height)
-    }
-
-    /// Gets the scale factor of the window.
-    pub fn scale_factor(&self) -> f64 {
-        self.0.scale_factor()
-    }
 }

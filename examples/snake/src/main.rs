@@ -2,7 +2,7 @@ use rand::prelude::IteratorRandom;
 use std::collections::VecDeque;
 use teenygame::{
     audio::{PlaybackHandle, Region, Sound, Source},
-    graphics::{font, Canvas, Color, Drawable as _, Image, TextureSlice},
+    graphics::{font, Canvas, Color, Drawable as _, Image, Label, TextureSlice},
     input::KeyCode,
     math::*,
     Context,
@@ -58,7 +58,11 @@ impl Game {
 }
 
 impl teenygame::Game for Game {
-    fn new() -> Self {
+    fn new(ctxt: &mut Context) -> Self {
+        ctxt.font_system
+            .db_mut()
+            .load_font_data(include_bytes!("PixelOperator.ttf").to_vec());
+
         let mut board = [[None; BOARD_SIZE.x as usize]; BOARD_SIZE.y as usize];
         let snake = VecDeque::from([BOARD_SIZE / 2]);
 
@@ -100,11 +104,12 @@ impl teenygame::Game for Game {
     }
 
     fn resumed(&mut self, ctxt: &mut Context) {
-        ctxt.gfx.add_font(include_bytes!("PixelOperator.ttf"));
-
-        let window = ctxt.gfx.window();
+        let window = ctxt.window.unwrap();
         window.set_title("Snake");
-        window.set_size(BOARD_SIZE * CELL_SIZE, false);
+
+        let size = BOARD_SIZE * CELL_SIZE;
+        let _ = window.request_inner_size(winit::dpi::PhysicalSize::new(size.x, size.y));
+        window.set_resizable(false);
 
         let bgm_source = Source::load(include_bytes!("8BitCave.wav")).unwrap();
 
@@ -209,18 +214,19 @@ impl teenygame::Game for Game {
         }
 
         canvas.draw(
-            ctxt.gfx
-                .prepare_text(
-                    format!("Score: {}", self.score),
-                    font::Metrics::relative(64.0, 1.0),
-                    font::Attrs::default(),
-                )
-                .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
+            Label::new(
+                ctxt.font_system,
+                &format!("Score: {}", self.score),
+                font::Metrics::relative(64.0, 1.0),
+                font::Attrs::default(),
+            )
+            .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
             translate(16.0, 56.0),
         );
 
         if self.game_over {
-            let prepared_game_over = ctxt.gfx.prepare_text(
+            let prepared_game_over = Label::new(
+                ctxt.font_system,
                 "GAME OVER",
                 font::Metrics::relative(128.0, 1.0),
                 font::Attrs::default(),
