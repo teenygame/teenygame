@@ -41,6 +41,7 @@ use winit::keyboard::PhysicalKey;
 
 struct GraphicsState {
     canvasette_renderer: canvasette::Renderer,
+    canvasette_cache: canvasette::Cache,
 }
 
 struct Application<G> {
@@ -50,6 +51,7 @@ struct Application<G> {
     input_state: InputState,
     game: G,
 
+    font_system: cosmic_text::FontSystem,
     gfx_state: Option<GraphicsState>,
 
     #[cfg(all(not(target_arch = "wasm32"), feature = "tokio"))]
@@ -107,6 +109,10 @@ where
         Self {
             game: G::new(),
             gfx_state: None,
+            font_system: cosmic_text::FontSystem::new_with_locale_and_db(
+                sys_locale::get_locale().unwrap_or_else(|| "en-US".to_string()),
+                cosmic_text::fontdb::Database::new(),
+            ),
 
             #[cfg(feature = "audio")]
             audio,
@@ -130,6 +136,7 @@ where
 
         self.gfx_state = Some(GraphicsState {
             canvasette_renderer,
+            canvasette_cache: canvasette::Cache::new(),
         });
 
         let gfx_state = self.gfx_state.as_mut().unwrap();
@@ -140,7 +147,7 @@ where
             audio: &mut self.audio,
             gfx: &mut Graphics {
                 canvasette_renderer: &mut gfx_state.canvasette_renderer,
-                wgpu,
+                font_system: &mut self.font_system,
                 window,
             },
         });
@@ -219,7 +226,7 @@ where
                 audio: &mut self.audio,
                 gfx: &mut Graphics {
                     canvasette_renderer: &mut gfx_state.canvasette_renderer,
-                    wgpu,
+                    font_system: &mut self.font_system,
                     window,
                 },
             });
@@ -234,7 +241,7 @@ where
                 audio: &mut self.audio,
                 gfx: &mut Graphics {
                     canvasette_renderer: &mut gfx_state.canvasette_renderer,
-                    wgpu,
+                    font_system: &mut self.font_system,
                     window,
                 },
             },
@@ -249,6 +256,8 @@ where
         graphics::render_to_texture(
             wgpu,
             &mut gfx_state.canvasette_renderer,
+            &mut gfx_state.canvasette_cache,
+            &mut self.font_system,
             &canvas,
             &frame.texture,
         );

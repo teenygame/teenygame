@@ -2,7 +2,7 @@ use rand::prelude::IteratorRandom;
 use std::collections::VecDeque;
 use teenygame::{
     audio::{PlaybackHandle, Region, Sound, Source},
-    graphics::{font, Canvas, Color, Drawable as _, Lazy, Texture},
+    graphics::{font, Canvas, Color, Drawable as _, Image, TextureSlice},
     input::KeyCode,
     math::*,
     Context,
@@ -25,7 +25,7 @@ const WEST: IVec2 = ivec2(-1, 0);
 
 #[teenygame::game]
 struct Game {
-    texture: Lazy<Texture>,
+    texture: Image,
     pickup_sfx: Sound,
     game_over_sfx: Sound,
     bgm_handle: Option<PlaybackHandle>,
@@ -36,7 +36,6 @@ struct Game {
     next_direction: IVec2,
     score: u32,
     elapsed: u32,
-    font: Lazy<Vec<font::Attrs>>,
 }
 
 impl Game {
@@ -68,11 +67,15 @@ impl teenygame::Game for Game {
         }
 
         let mut game = Self {
-            texture: Lazy::new(teenygame::image::Img::new(
-                vec![Color::new(0xff, 0xff, 0xff, 0xff)],
-                uvec2(1, 1),
-                1,
-            )),
+            texture: Image::new(
+                vec![0xff, 0xff, 0xff, 0xff],
+                wgpu::Extent3d {
+                    width: 1,
+                    height: 1,
+                    depth_or_array_layers: 1,
+                },
+                wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            ),
             pickup_sfx: Sound::new(Source::load(include_bytes!("pickup.wav")).unwrap()),
             game_over_sfx: Sound::new(Source::load(include_bytes!("game_over.wav")).unwrap()),
             bgm_handle: None,
@@ -83,13 +86,14 @@ impl teenygame::Game for Game {
             next_direction: SOUTH,
             score: 0,
             elapsed: 0,
-            font: Lazy::new(include_bytes!("PixelOperator.ttf").to_vec()),
         };
         game.spawn_fruit();
         game
     }
 
     fn resumed(&mut self, ctxt: &mut Context) {
+        ctxt.gfx.add_font(include_bytes!("PixelOperator.ttf"));
+
         let window = ctxt.gfx.window();
         window.set_title("Snake");
         window.set_size(BOARD_SIZE * CELL_SIZE, false);
@@ -178,41 +182,41 @@ impl teenygame::Game for Game {
     }
 
     fn draw<'a>(&'a mut self, ctxt: &mut Context, canvas: &mut Canvas<'a>) {
-        let texture = self.texture.get_or_load(ctxt.gfx);
-
         for (y, row) in self.board.iter().enumerate() {
             for (x, cell) in row.iter().enumerate() {
                 canvas.draw(
-                    texture.layer(0).unwrap().tinted(match cell {
-                        None => {
-                            continue;
-                        }
-                        Some(Cell::Fruit) => Color::new(0xff, 0x00, 0x00, 0xff),
-                        Some(Cell::Snake) => Color::new(0xff, 0xff, 0xff, 0xff),
-                    }),
+                    TextureSlice::from_layer(&self.texture, 0)
+                        .unwrap()
+                        .tinted(match cell {
+                            None => {
+                                continue;
+                            }
+                            Some(Cell::Fruit) => Color::new(0xff, 0x00, 0x00, 0xff),
+                            Some(Cell::Snake) => Color::new(0xff, 0xff, 0xff, 0xff),
+                        }),
                     Affine2::from_translation(vec2(x as f32, y as f32) * CELL_SIZE as f32)
                         * Affine2::from_scale(vec2(CELL_SIZE as f32, CELL_SIZE as f32)),
                 );
             }
         }
 
-        let face = self.font.get_or_load(ctxt.gfx)[0].clone();
-
         canvas.draw(
             ctxt.gfx
                 .prepare_text(
                     format!("Score: {}", self.score),
                     font::Metrics::relative(64.0, 1.0),
-                    face.clone(),
+                    font::Attrs::default(),
                 )
                 .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
             translate(16.0, 56.0),
         );
 
         if self.game_over {
-            let prepared_game_over =
-                ctxt.gfx
-                    .prepare_text("GAME OVER", font::Metrics::relative(128.0, 1.0), face);
+            let prepared_game_over = ctxt.gfx.prepare_text(
+                "GAME OVER",
+                font::Metrics::relative(128.0, 1.0),
+                font::Attrs::default(),
+            );
             let game_over_size = prepared_game_over.size();
             canvas.draw(
                 prepared_game_over.tinted(Color::new(0xff, 0x00, 0x00, 0xff)),

@@ -2,7 +2,7 @@ use std::{f32::consts::TAU, num::NonZero};
 
 use soa_rs::{soa, Soa, Soars};
 use teenygame::{
-    graphics::{font, Canvas, Color, Drawable, Lazy, Texture, TextureSlice},
+    graphics::{font, Canvas, Color, Drawable, Image, TextureSlice},
     image,
     input::KeyCode,
     math::*,
@@ -23,23 +23,22 @@ struct Game {
     deaths: usize,
     n: usize,
     bullets: Soa<Bullet>,
-    bullet_texture: Lazy<Texture>,
+    bullet_texture: Image,
     player_pos: Vec2,
     elapsed: usize,
     last_draw_time: time::Instant,
-    font: Lazy<Vec<font::Attrs>>,
 }
 
 struct TextureSlices<'a> {
-    bullet: TextureSlice<'a>,
-    player: TextureSlice<'a>,
+    bullet: TextureSlice<'a, Image>,
+    player: TextureSlice<'a, Image>,
 }
 
 impl<'a> TextureSlices<'a> {
-    fn new(parent: &'a Texture) -> Option<Self> {
+    fn new(parent: &'a Image) -> Option<Self> {
         Some(Self {
-            bullet: parent.layer(0)?.slice(ivec2(0, 48), uvec2(16, 16))?,
-            player: parent.layer(0)?.slice(ivec2(0, 440), uvec2(8, 8))?,
+            bullet: TextureSlice::from_layer(parent, 0)?.slice(ivec2(0, 48), uvec2(16, 16))?,
+            player: TextureSlice::from_layer(parent, 0)?.slice(ivec2(0, 440), uvec2(8, 8))?,
         })
     }
 }
@@ -57,17 +56,16 @@ impl teenygame::Game for Game {
             deaths: 0,
             n: 0,
             bullets: soa![],
-            bullet_texture: Lazy::new(
-                image::load_from_memory(include_bytes!("Shot_01.png")).unwrap(),
-            ),
+            bullet_texture: image::load_from_memory(include_bytes!("Shot_01.png")).unwrap(),
             player_pos: Vec2::new(SIZE.x as f32 / 2.0, SIZE.y as f32 * 3.0 / 4.0),
             elapsed: 0,
             last_draw_time: time::Instant::now(),
-            font: Lazy::new(include_bytes!("PixelOperator.ttf").to_vec()),
         }
     }
 
     fn resumed(&mut self, ctxt: &mut Context) {
+        ctxt.gfx.add_font(include_bytes!("PixelOperator.ttf"));
+
         let window = ctxt.gfx.window();
         window.set_title("Bullet Hell");
         window.set_size(SIZE * SCALE, false);
@@ -177,7 +175,7 @@ impl teenygame::Game for Game {
 
     fn draw<'a>(&'a mut self, ctxt: &mut Context, canvas: &mut Canvas<'a>) {
         let start_time = time::Instant::now();
-        let slices = TextureSlices::new(self.bullet_texture.get_or_load(ctxt.gfx)).unwrap();
+        let slices = TextureSlices::new(&self.bullet_texture).unwrap();
 
         let mut to_draw = self
             .bullets
@@ -220,8 +218,6 @@ impl teenygame::Game for Game {
             );
         }
 
-        let face = self.font.get_or_load(ctxt.gfx)[0].clone();
-
         canvas.draw(
             ctxt.gfx
                 .prepare_text(
@@ -232,7 +228,7 @@ impl teenygame::Game for Game {
                         1.0 / (start_time - self.last_draw_time).as_secs_f32()
                     ),
                     font::Metrics::relative(64.0, 1.0),
-                    face,
+                    font::Attrs::default(),
                 )
                 .tinted(Color::new(0xff, 0xff, 0xff, 0xff)),
             translate(16.0, 56.0),

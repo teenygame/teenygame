@@ -1,42 +1,26 @@
 //! Graphics support.
 
-use crate::{image::AsImgRef, math};
-pub use canvasette::{font, Canvas, Drawable, PreparedText, TextureSlice};
-use wgpu::util::DeviceExt as _;
+use crate::math;
+pub use canvasette::{font, Canvas, Color, Drawable, Image, PreparedText, TextureSlice};
 use winit::dpi::PhysicalSize;
-
-/// An 8-bit RGBA color.
-pub type Color = rgb::Rgba<u8>;
-
-/// A texture that can be rendered to.
-///
-/// Framebuffers may be created via [`Graphics::create_framebuffer`].
-pub struct Framebuffer(wgpu::Texture);
-
-impl Framebuffer {
-    /// Gets the underlying texture as a [`TextureSlice`], which may be used for sprite drawing.
-    pub fn as_texture_slice(&self) -> TextureSlice {
-        TextureSlice::new(&self.0, 0)
-    }
-}
-
-#[derive(PartialEq, Eq)]
-struct DeviceId(*const wgpu::Device);
-
-pub struct Graphics<'a> {
-    pub(crate) canvasette_renderer: &'a mut canvasette::Renderer,
-    pub(crate) wgpu: &'a wginit::Wgpu,
-    pub(crate) window: &'a winit::window::Window,
-}
 
 pub(crate) fn render_to_texture(
     wgpu: &wginit::Wgpu,
     canvasette_renderer: &mut canvasette::Renderer,
+    canvasette_cache: &mut canvasette::Cache,
+    font_system: &mut cosmic_text::FontSystem,
     canvas: &Canvas,
     texture: &wgpu::Texture,
 ) {
     canvasette_renderer
-        .prepare(&wgpu.device, &wgpu.queue, texture.size(), canvas)
+        .prepare(
+            &wgpu.device,
+            &wgpu.queue,
+            canvasette_cache,
+            font_system,
+            texture.size(),
+            canvas,
+        )
         .unwrap();
 
     let mut encoder = wgpu
@@ -68,14 +52,16 @@ pub(crate) fn render_to_texture(
     wgpu.queue.submit(Some(encoder.finish()));
 }
 
-impl<'a> Graphics<'a> {
-    fn device_id(&self) -> DeviceId {
-        DeviceId(&self.wgpu.device as *const _)
-    }
+pub struct Graphics<'a> {
+    pub(crate) canvasette_renderer: &'a mut canvasette::Renderer,
+    pub(crate) font_system: &'a mut cosmic_text::FontSystem,
+    pub(crate) window: &'a winit::window::Window,
+}
 
+impl<'a> Graphics<'a> {
     /// Adds a font.
-    pub fn add_font(&mut self, font: &[u8]) -> Vec<font::Attrs> {
-        self.canvasette_renderer.add_font(font)
+    pub fn add_font(&mut self, font: &[u8]) {
+        self.font_system.db_mut().load_font_data(font.to_vec());
     }
 
     /// Prepares text for rendering.
@@ -86,74 +72,12 @@ impl<'a> Graphics<'a> {
         attrs: font::Attrs,
     ) -> PreparedText {
         self.canvasette_renderer
-            .prepare_text(contents, metrics, attrs)
+            .prepare_text(self.font_system, contents, metrics, attrs)
     }
 
     /// Retrieve the underlying window.
     pub fn window(&self) -> Window {
         Window(&self.window)
-    }
-
-    /// Creates an empty framebuffer texture.
-    pub fn create_framebuffer(&self, size: math::UVec2) -> Framebuffer {
-        Framebuffer(
-            self.wgpu.device.create_texture(&wgpu::TextureDescriptor {
-                label: Some("teenygame: Framebuffer"),
-                size: wgpu::Extent3d {
-                    width: size.x,
-                    height: size.y,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: self
-                    .wgpu
-                    .surface
-                    .get_capabilities(&self.wgpu.adapter)
-                    .formats[0],
-                usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-                    | wgpu::TextureUsages::TEXTURE_BINDING
-                    | wgpu::TextureUsages::COPY_SRC,
-                view_formats: &[],
-            }),
-        )
-    }
-
-    /// Loads a texture.
-    pub fn load_texture(&self, img: impl AsImgRef<Color>) -> Texture {
-        let img = img.as_ref();
-        let size = img.size();
-
-        Texture(self.wgpu.device.create_texture_with_data(
-            &self.wgpu.queue,
-            &wgpu::TextureDescriptor {
-                label: Some("teenygame: Texture"),
-                size: wgpu::Extent3d {
-                    width: size.x,
-                    height: size.y,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
-                view_formats: &[],
-            },
-            wgpu::util::TextureDataOrder::default(),
-            &bytemuck::cast_slice(img.as_buf()),
-        ))
-    }
-
-    /// Renders to a framebuffer.
-    pub fn render_to_framebuffer(&mut self, canvas: &Canvas, framebuffer: &Framebuffer) {
-        render_to_texture(
-            &self.wgpu,
-            &mut self.canvasette_renderer,
-            canvas,
-            &framebuffer.0,
-        );
     }
 }
 
@@ -181,94 +105,5 @@ impl<'a> Window<'a> {
     /// Gets the scale factor of the window.
     pub fn scale_factor(&self) -> f64 {
         self.0.scale_factor()
-    }
-}
-
-/// A texture.
-pub struct Texture(wgpu::Texture);
-
-impl Texture {
-    /// Gets a slice of the texture at the given layer.
-    pub fn layer(&self, layer: u32) -> Option<TextureSlice> {
-        if layer >= self.0.size().depth_or_array_layers {
-            return None;
-        }
-        Some(TextureSlice::new(&self.0, layer))
-    }
-}
-
-/// A lazily loaded resource.
-pub struct Lazy<Resource>
-where
-    Resource: LazyLoadable,
-{
-    raw: Resource::Raw,
-    loaded: Option<LazyLoaded<Resource>>,
-}
-
-struct LazyLoaded<Resource> {
-    ready: Resource,
-    device_id: DeviceId,
-}
-
-/// A resource that can be lazily loaded.
-pub trait LazyLoadable {
-    /// The raw resource.
-    type Raw;
-
-    /// Loads a raw resource into the graphics state and returns the loaded resource.
-    fn load(graphics: &mut Graphics, raw: &Self::Raw) -> Self;
-}
-
-impl LazyLoadable for Texture {
-    type Raw = crate::image::Img<Vec<rgb::RGBA8>>;
-
-    fn load(graphics: &mut Graphics, raw: &Self::Raw) -> Self {
-        graphics.load_texture(raw.as_ref())
-    }
-}
-
-impl LazyLoadable for Vec<font::Attrs> {
-    type Raw = Vec<u8>;
-
-    fn load(graphics: &mut Graphics, raw: &Self::Raw) -> Self {
-        graphics.add_font(raw)
-    }
-}
-
-impl<Resource> Lazy<Resource>
-where
-    Resource: LazyLoadable,
-{
-    /// Creates a lazy resource from the raw resource.
-    pub fn new(raw: Resource::Raw) -> Self {
-        Self { raw, loaded: None }
-    }
-
-    /// Gets the loaded resource, or loads it if not already loaded.
-    ///
-    /// When this function is first called, the resource will be loaded into the graphics state.
-    ///
-    /// If the graphics device is invalidated, the underlying resource will also be invalidated and a subsequent call to this function will reload it if a new graphics state is provided.
-    pub fn get_or_load(&mut self, graphics: &mut Graphics) -> &Resource {
-        let device_id = graphics.device_id();
-        if let Some(loaded) = &self.loaded {
-            if device_id != loaded.device_id {
-                self.unload();
-            }
-        }
-
-        &self
-            .loaded
-            .get_or_insert_with(|| LazyLoaded {
-                ready: Resource::load(graphics, &self.raw),
-                device_id,
-            })
-            .ready
-    }
-
-    /// Unloads the resource.
-    pub fn unload(&mut self) {
-        self.loaded = None;
     }
 }
